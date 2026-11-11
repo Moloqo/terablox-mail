@@ -115,3 +115,16 @@ One `index.html` file — open it straight in the browser, no build, no install.
 - `PANDUAN.txt` — setup guide from scratch, in Indonesian (in the
   terablox-mail-proxy folder, not deployed to Pages).
 - `worker.js` — Cloudflare Worker v6 code (deployed manually on Cloudflare).
+
+## What's new in v11 (2026-11-12) — auto-save drafts
+
+- **Drafts save automatically**: while you write an email, the text fields
+  (From, To, Cc, Bcc, Subject, body) are saved to this browser (new key
+  `tbm_draft`, half a second after you stop typing). If you close the
+  compose window by accident, opening a new email restores the draft with
+  a "Draft restored — last saved HH:MM" note and a "Discard draft" button.
+- One draft slot — always the latest unsent email. Reply and Forward never
+  load the draft (they use their own prefilled content); attachments are
+  not saved in drafts. The draft is deleted automatically once the email
+  is sent, or when you tap "Discard draft".
+- No Worker change — Worker v6 still applies.

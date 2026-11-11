@@ -9,10 +9,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 
-/* TheMail v10 — new logo (envelope + letter, Varian 1 "Surat") + product renamed + simplified descriptive design.
+/* TheMail v11 — auto-save drafts (new key tbm_draft; text fields only, attachments not saved).
    Single file, no server, no external fonts. All Resend calls go through your Worker.
    The Resend API key NEVER lives in this file. What is stored in this browser's localStorage:
-   Worker URL + password, sender names, locally sent mail, read marks. */
+   Worker URL + password, sender names, locally sent mail, read marks, draft of the last unsent email. */
 :root{
   --bg:#f8fafc; --surface:#ffffff; --surface-2:#f1f5f9; --text:#0f172a; --dim:#64748b;
   --border:#e2e8f0; --accent:#2563eb; --accent-strong:#1d4ed8; --accent-soft:#eff6ff;
@@ -175,7 +175,8 @@ const PUBLIC_WORKER_URL = "https://mail-terablox.lazulias00.workers.dev";
 const BOOT_MODE = "guest";
 const LS = {
   get(k, fb){ try{ const v = localStorage.getItem("tbm_"+k); return v===null?fb:JSON.parse(v); }catch(e){ return fb; } },
-  set(k, v){ try{ localStorage.setItem("tbm_"+k, JSON.stringify(v)); }catch(e){} }
+  set(k, v){ try{ localStorage.setItem("tbm_"+k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem("tbm_"+k); }catch(e){} }
 };
 let cfg = {
   proxyUrl: LS.get("proxy_url",""),
@@ -322,7 +323,7 @@ async function sendCurrentCompose(){
   const data = await resend("POST","/emails",{body:payload});
   sentLocal.unshift({ id: data&&data.id?data.id:("local-"+Date.now()), from:identity.email, to:to, subject:payload.subject, body_text:c.body, attachments:(c.attachments||[]).map(a=>a.filename), created_at:new Date().toISOString() });
   saveSent();
-  state.compose=null; state.tab="sent"; render(); toast("Email sent.");
+  LS.del("draft"); state.compose=null; state.tab="sent"; render(); toast("Email sent.");
 }
 /* Refresh otomatis tiap 2 menit selama file ini terbuka & tab Inbox aktif */
 setInterval(()=>{ if(state.mode==="guest" && state.guestAddress && !state.guestLoading && !document.hidden && !state.guestOpenId) loadGuestInbox(); if(configured() && state.mode==="owner" && state.tab==="inbox" && !state.loading && !document.hidden && !state.openId && !state.compose) loadInbox(); }, 120000);
@@ -753,6 +754,7 @@ function composeHtml(){
   if(!identities.length) return '<div class="overlay"><div class="overlay-inner"><div class="overlay-head"><button class="icon-btn" onclick="closeCompose()">'+ic('x')+'</button><h2>'+esc(c.title)+'</h2></div><div class="card card-pad"><b>No sender name yet.</b><p class="muted">Add a sender address first (for example hello@'+esc(cfg.domain)+') in Settings.</p><br><button class="btn btn-primary" onclick="closeCompose();goTab(\'settings\')">Open Settings</button></div></div></div>';
   const opts=identities.map(i=>'<option value="'+esc(i.email)+'"'+(i.email===c.fromEmail?" selected":"")+">"+esc(i.name)+" &lt;"+esc(i.email)+"&gt;</option>").join("");
   return '<div class="overlay"><div class="overlay-inner"><div class="overlay-head"><button class="icon-btn" onclick="closeCompose()">'+ic('x')+'</button><h2 style="flex:1">'+esc(c.title)+'</h2><button class="btn btn-primary" id="send-btn" onclick="doSend()">'+ic('send')+' Send</button></div>'
+    +(c._draftRestored?'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 2px 0"><span class="small">Draft restored — last saved '+esc(new Date(c._draftSavedAt||Date.now()).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}))+' (attachments are not saved in drafts)</span><button class="btn" style="min-height:30px;padding:2px 10px" onclick="discardDraft()">Discard draft</button></div>':'')
     +'<div class="card card-pad">'
     +'<div class="field"><label for="c-from">Send as</label><select id="c-from" onchange="updCompose(\'fromEmail\',this.value)">'+opts+'</select></div>'
     +'<div class="field"><label for="c-to">To</label><input id="c-to" type="text" placeholder="name@email.com — separate with commas if more than one" value="'+esc(c.to)+'" oninput="updCompose(\'to\',this.value)"></div>'
@@ -763,7 +765,11 @@ function composeHtml(){
     +'<div class="field"><label>Attachments <span style="font-weight:400;color:var(--dim)">(optional, max 10 MB total)</span></label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn" onclick="document.getElementById(\'c-files\').click()">'+ic('paperclip')+' Attach files</button><span class="small" id="att-summary"></span></div><input id="c-files" type="file" multiple style="display:none" onchange="onAttachFiles(this)"><div id="att-list" style="margin-top:8px"></div></div>'
     +'<p class="err" id="compose-error"></p></div></div></div>';
 }
-function updCompose(k,v){ if(state.compose) state.compose[k]=v; }
+function updCompose(k,v){ if(state.compose) state.compose[k]=v; saveDraft(); }
+let _draftTimer=null;
+function saveDraft(){ if(!state.compose) return; clearTimeout(_draftTimer); _draftTimer=setTimeout(()=>{ const c=state.compose; if(!c) return; const d={fromEmail:c.fromEmail,to:c.to||"",cc:c.cc||"",bcc:c.bcc||"",subject:c.subject||"",body:c.body||"",updated_at:Date.now()}; if(!d.to&&!d.cc&&!d.bcc&&!d.subject&&!d.body){ LS.del("draft"); } else { LS.set("draft",d); } },500); }
+function loadDraft(){ return LS.get("draft",null); }
+function discardDraft(){ LS.del("draft"); if(state.compose){ state.compose.to=""; state.compose.cc=""; state.compose.bcc=""; state.compose.subject=""; state.compose.body=""; state.compose._draftRestored=false; } render(); }
 function closeCompose(){ state.compose=null; render(); }
 const MAX_ATTACH_TOTAL = 10*1024*1024;
 function onAttachFiles(input){
@@ -801,7 +807,7 @@ function renderAttList(){
 }
 function removeAttachment(i){ if(!state.compose || !state.compose.attachments) return; state.compose.attachments.splice(i,1); renderAttList(); }
 async function doSend(){ const btn=document.getElementById("send-btn"); const errEl=document.getElementById("compose-error"); if(state.compose && (state.compose._attPending||0)>0){ if(errEl) errEl.textContent="Still reading attached files — please wait a moment."; return; } if(btn){btn.disabled=true; btn.innerHTML="Sending…";} if(errEl) errEl.textContent=""; try{ await sendCurrentCompose(); }catch(e){ if(errEl) errEl.textContent=e.message||"Failed to send email."; if(btn){btn.disabled=false; btn.innerHTML=ic('send')+" Send";} } }
-function newCompose(){ state.compose={ title:"New email", fromEmail:(identities.find(i=>i.email.toLowerCase()===(state.activeAddress||"").toLowerCase())||identities[0]||{}).email||"", to:"", cc:"", bcc:"", subject:"", body:"", attachments:[] }; render(); }
+function newCompose(){ const d=loadDraft(); const defFrom=(identities.find(i=>i.email.toLowerCase()===(state.activeAddress||"").toLowerCase())||identities[0]||{}).email||""; state.compose={ title:"New email", fromEmail:(d&&d.fromEmail&&identities.some(i=>i.email===d.fromEmail))?d.fromEmail:defFrom, to:d?d.to||"":"", cc:d?d.cc||"":"", bcc:d?d.bcc||"":"", subject:d?d.subject||"":"", body:d?d.body||"":"", attachments:[], _draftRestored:!!d, _draftSavedAt:d?d.updated_at:0 }; render(); }
 
 /* ===== Settings v2: 3 kartu terpisah, bukan satu form panjang ===== */
 function settingsHtml(){
