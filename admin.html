@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Terablox Mail — @terablox.store</title>
+<title>TheMail — @terablox.store</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 
-/* Terablox Mail v9 — Inter font + consistent SVG icons (no more emoji icons).
+/* TheMail v10 — new logo (envelope + letter, Varian 1 "Surat") + product renamed + simplified descriptive design.
    Single file, no server, no external fonts. All Resend calls go through your Worker.
    The Resend API key NEVER lives in this file. What is stored in this browser's localStorage:
    Worker URL + password, sender names, locally sent mail, read marks. */
@@ -46,6 +46,10 @@ a{color:var(--accent)}
 .header-in{max-width:1080px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
 .brand-mark{width:36px;height:36px;flex:0 0 36px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800}
+.brand-mark svg{width:23px;height:23px}
+.controls-card{padding:14px 16px;margin-bottom:12px}
+.controls-card .toolbar{margin-bottom:0}
+.ctl-note{margin:10px 2px 0;font-size:12.5px;color:var(--dim)}
 .brand-name{font-weight:700;font-size:16px;line-height:1.2;white-space:nowrap;letter-spacing:-.01em}
 .brand-sub{font-size:12.5px;color:var(--dim);white-space:nowrap}
 .status{margin-left:auto;display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;white-space:nowrap}
@@ -125,7 +129,7 @@ details.help code{background:var(--surface);border:1px solid var(--border);borde
 .empty b{color:var(--text);display:block;font-size:16px;margin-bottom:6px}
 .page-head{display:flex;align-items:baseline;gap:10px;margin:2px 2px 14px;flex-wrap:wrap}
 .page-head .spacer{flex:1}
-.chip{display:inline-flex;border:1px solid var(--border);border-radius:999px;padding:3px 11px;font-size:12.5px;font-weight:600;background:var(--surface)}
+.chip{display:inline-flex;border:1px solid var(--border);border-radius:999px;padding:3px 11px;font-size:12.5px;font-weight:600;background:var(--surface);white-space:nowrap}
 .chip-accent{color:var(--accent-strong);background:var(--accent-soft);border-color:transparent}
 
 /* ---------- Read email & compose ---------- */
@@ -203,7 +207,7 @@ function renderToast(){ updateTitleBadge(); document.getElementById("toast-root"
 function updateTitleBadge(){
   if(typeof unreadCount!=="function") return;
   const n = state.mode==="guest" ? 0 : unreadCount();
-  document.title = n>0 ? "("+n+") Terablox Mail — @terablox.store" : "Terablox Mail — @terablox.store";
+  document.title = n>0 ? "("+n+") TheMail — @terablox.store" : "TheMail — @terablox.store";
 }
 function announceNewMail(prevIds, list, label){
   if(!prevIds || !prevIds.size) return;
@@ -213,7 +217,7 @@ function announceNewMail(prevIds, list, label){
   const msg=(n===1?"1 new email":n+" new emails")+(label?" — "+label:"");
   toast(msg);
   if(state.notifyEnabled && document.hidden && "Notification" in window && Notification.permission==="granted"){
-    try{ new Notification("Terablox Mail",{body:msg+"\n"+fresh.slice(0,3).map(m=>displaySender(m.from)+": "+(m.subject||"(no subject)")).join("\n")}); }catch(e){}
+    try{ new Notification("TheMail",{body:msg+"\n"+fresh.slice(0,3).map(m=>displaySender(m.from)+": "+(m.subject||"(no subject)")).join("\n")}); }catch(e){}
   }
 }
 </script>
@@ -527,7 +531,7 @@ function rotateGuestAddress(){
 }
 function lockOwner(){ location.href="./"; }
 function wipeAllData(){
-  if(!confirm("Delete ALL Terablox Mail data in this browser? The Worker URL, password, sender names, sent mail, read marks, and guest addresses will be gone.")) return;
+  if(!confirm("Delete ALL TheMail data in this browser? The Worker URL, password, sender names, sent mail, read marks, and guest addresses will be gone.")) return;
   ["proxy_url","proxy_password","domain","identities","sent","read","active_address","guest_address","guest_created","theme","notify_enabled"].forEach(k=>{ try{ localStorage.removeItem("tbm_"+k); }catch(e){} });
   cfg={proxyUrl:"",proxyPassword:"",domain:"terablox.store"}; identities=[]; sentLocal=[]; readFlags={};
   state.messages=[]; state.activeAddress=""; state.guestAddress=""; state.guestCreated=[]; state.guestMessages=[];
@@ -605,7 +609,7 @@ function guestHtml(){
   const n=state.guestCreated.length;
   const maxed=n>=3;
   const chips=n>1 ? '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px">'+state.guestCreated.map(e=>'<button class="chip" style="'+(e===a?"background:var(--accent);color:#fff;border-color:var(--accent);font-weight:800;":"")+'" onclick="switchGuestAddress(\''+esc(e)+'\')">'+esc(e.split("@")[0])+'</button>').join("")+'</div>' : '';
-  return '<div class="card card-pad section-card" style="text-align:center"><p class="small" style="margin:0 0 6px">Your temporary address ('+n+'/3)</p><p style="font-family:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;font-size:17px;font-weight:800;word-break:break-all;margin:0 0 12px">'+esc(a)+'</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn btn-primary" onclick="copyAddress(\''+esc(a)+'\')">'+ic('clipboard')+' Copy address</button><button class="btn" onclick="loadGuestInbox()">'+ic('refresh')+' Refresh</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"><button class="btn" onclick="rotateGuestAddress()">'+ic('repeat')+' Change address</button></div>'+chips+(maxed?'<p class="small" style="margin:12px 0 0">You have used 3/3 temporary addresses (maximum, recorded on the server, forever). Tap one of the addresses above to switch.</p>':'<p class="small" style="margin:12px 0 0">Anyone who knows this address can read its inbox — do not use it for anything important. Mail is checked automatically every 2 minutes while this page is open.</p>')+'</div>'
+  return '<div class="card card-pad section-card" style="text-align:center"><p class="small" style="margin:0 0 6px">Your temporary address ('+n+'/3)</p><p style="font-family:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;font-size:17px;font-weight:800;word-break:break-all;margin:0 0 12px">'+esc(a)+'</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn btn-primary" onclick="copyAddress(\''+esc(a)+'\')">'+ic('clipboard')+' Copy address</button><button class="btn" onclick="loadGuestInbox()">'+ic('refresh')+' Check now</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"><button class="btn" onclick="rotateGuestAddress()">'+ic('repeat')+' New address</button></div>'+chips+(maxed?'<p class="small" style="margin:12px 0 0">You have used 3/3 temporary addresses (maximum, recorded on the server, forever). Tap one of the addresses above to switch.</p>':'<p class="small" style="margin:12px 0 0">Anyone who knows this address can read its inbox — do not use it for anything important.</p>')+'</div>'
     +'<div class="toolbar"><div class="search"><span>'+ic('search')+'</span><input id="search-input" type="search" placeholder="Search sender or subject\u2026" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div></div>'
     + guestListHtml();
 }
@@ -637,13 +641,13 @@ function addrChipsHtml(){
   const addrs=computeAddresses();
   if(!addrs.length) return '';
   let h='<div style="display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none">';
-  h+='<button class="chip" style="'+(!state.activeAddress?"background:var(--accent);color:#fff;border-color:var(--accent);font-weight:800;":"")+'" onclick="setActiveAddress(\'\')">All</button>';
+  h+='<button class="chip" style="'+(!state.activeAddress?"background:var(--accent);color:#fff;border-color:var(--accent);font-weight:800;":"")+'" onclick="setActiveAddress(\'\')">All addresses</button>';
   addrs.forEach(a=>{
     const local=a.email.split("@")[0];
     const active=a.email===state.activeAddress;
     h+='<button class="chip" title="'+esc(a.email)+'" style="'+(active?"background:var(--accent);color:#fff;border-color:var(--accent);font-weight:800;":"")+'" onclick="setActiveAddress(\''+esc(a.email)+'\')">'+esc(local)+(a.count?' ('+a.count+')':'')+'</button>';
   });
-  h+='<button class="chip" onclick="openAddrManage()">+ New</button></div>';
+  h+='<button class="chip" onclick="openAddrManage()">+ New address</button></div>';
   return h;
 }
 function openAddrManage(){ state.addrManageOpen=true; render(); const el=document.getElementById("a-name"); if(el) el.focus(); }
@@ -832,11 +836,11 @@ function onSearch(v){ state.search=v; if(state.tab!=="inbox"){ state.tab="inbox"
 function render(){
   if(state.mode==="guest"){
     if(!guestBase()){
-      app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">T</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
+      app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2.5" width="8" height="6" rx="1" fill="#fff" stroke="none"/><rect x="2.5" y="8" width="19" height="11.5" rx="2"/><path d="M3.5 9.5 12 15.5l8.5-6"/></svg></span><span><span class="brand-name">TheMail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
         +'<div class="shell"><main class="main"><div class="card card-pad" style="text-align:center"><div style="font-size:40px">✉</div><h1 style="margin:8px 0 6px">Guest mode is not active yet</h1><p class="muted" style="margin:0">This copy has not been connected to the public Worker yet. The owner needs to enter the Worker URL first.</p></div></main></div>';
       renderToast(); return;
     }
-    app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">T</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">Temporary address</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
+    app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2.5" width="8" height="6" rx="1" fill="#fff" stroke="none"/><rect x="2.5" y="8" width="19" height="11.5" rx="2"/><path d="M3.5 9.5 12 15.5l8.5-6"/></svg></span><span><span class="brand-name">TheMail</span><br><span class="brand-sub">Temporary address</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
       +'<div class="shell"><main class="main"><div class="page-head"><h1>Guest Inbox</h1><span class="spacer"></span><span class="small">'+esc(state.guestAddress||"")+'</span></div>'+guestHtml()+'</main></div>'
       + guestReadHtml();
     renderToast(); loadAttPreviews(); return;
@@ -848,9 +852,9 @@ function render(){
   if(needsSetup){
     main = stepsHtml() + wizardHtml();
   } else if(state.tab==="inbox"){
-    main = addrChipsHtml() + addrManageHtml() + '<div class="toolbar"><div class="search"><span>'+ic('search')+'</span><input id="search-input" type="search" placeholder="Search sender or subject…" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div><button class="btn" onclick="loadInbox()" '+(state.loading?"disabled":"")+'><span class="'+(state.loading?"spin":"")+'">'+ic('refresh')+'</span> Refresh</button><button class="btn'+(state.unreadOnly?" on":"")+'" onclick="toggleUnreadOnly()">Unread'+(unread?(" ("+unread+")"):"")+'</button></div>'
-      +'<p class="small" style="margin:0 2px 12px">'+(state.lastSync?("Last checked: "+esc(new Date(state.lastSync).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}))+" · checked automatically every 2 minutes while this page is open"):"Press Refresh to check for incoming mail.")+'</p>'
-      + listHtml();
+    main = '<div class="card controls-card">' + addrChipsHtml() + '<div class="toolbar"><div class="search"><span>'+ic('search')+'</span><input id="search-input" type="search" placeholder="Search sender or subject…" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div><button class="btn" onclick="loadInbox()" '+(state.loading?"disabled":"")+'><span class="'+(state.loading?"spin":"")+'">'+ic('refresh')+'</span> Check now</button><button class="btn'+(state.unreadOnly?" on":"")+'" onclick="toggleUnreadOnly()">Unread only'+(unread?(" ("+unread+")"):"")+'</button></div>'
+      +'<p class="ctl-note">'+(state.lastSync?("Last checked: "+esc(new Date(state.lastSync).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}))+" · checked automatically every 2 minutes while this page is open"):"Press Check now to check for incoming mail.")+'</p>'
+      +'</div>' + addrManageHtml() + listHtml();
   }
   else if(state.tab==="sent") main=sentHtml();
   else main=settingsHtml();
@@ -858,7 +862,7 @@ function render(){
   const pageTitle = needsSetup ? "Set up first — it only takes a moment" : state.tab==="inbox" ? "Inbox" : state.tab==="sent" ? "Sent" : "Settings";
   const pageSub = needsSetup ? "3 steps, no technical jargon." : state.tab==="sent" ? "Only stored on this device." : state.tab==="settings" ? "Connection, sender names, and quota info." : (state.activeAddress ? esc(state.activeAddress) : "@"+esc(cfg.domain));
 
-  app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">T</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
+  app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2.5" width="8" height="6" rx="1" fill="#fff" stroke="none"/><rect x="2.5" y="8" width="19" height="11.5" rx="2"/><path d="M3.5 9.5 12 15.5l8.5-6"/></svg></span><span><span class="brand-name">TheMail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
     +'<div class="shell">'
     +(needsSetup?"":'<aside class="sidebar"><button class="side-btn" onclick="newCompose()">'+ic('compose')+'Compose new email</button><div style="height:8px"></div><button class="side-btn '+(state.tab==="inbox"?"active":"")+'" onclick="goTab(\'inbox\')">'+ic('inbox')+'Inbox'+(unread?'<span class="count">'+unread+'</span>':"")+'</button><button class="side-btn '+(state.tab==="sent"?"active":"")+'" onclick="goTab(\'sent\')">'+ic('send')+'Sent</button><button class="side-btn '+(state.tab==="settings"?"active":"")+'" onclick="goTab(\'settings\')">'+ic('sliders')+'Settings</button><p class="side-note">Mail to any @'+esc(cfg.domain)+' address arrives automatically. No need to create addresses one by one.</p></aside>')
     +'<main class="main"><div class="page-head"><h1>'+esc(pageTitle)+'</h1>'+(state.tab==="inbox"&&unreadShown&&!needsSetup?'<span class="chip chip-accent">'+unreadShown+" unread</span>":"")+'<span class="spacer"></span><span class="small">'+esc(pageSub)+'</span></div>'

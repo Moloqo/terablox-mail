@@ -1,4 +1,4 @@
-# Terablox Mail
+# TheMail
 
 Single-file webmail for `@terablox.store`, hosted on GitHub Pages:
 **https://moloqo.github.io/terablox-mail/**
@@ -33,6 +33,24 @@ One `index.html` file — open it straight in the browser, no build, no install.
   on dark surfaces.
 - On phones the inbox search is now full-width (Refresh & Unread move to
   the row below).
+- No Worker change — Worker v6 still applies.
+
+## What's new in v10 (2026-11-12) — new logo, new name, simpler design
+
+- **Renamed to TheMail** (was Terablox Mail): the brand name in the header,
+  page title, notifications and confirm dialogs is now TheMail. The mail
+  domain stays `@terablox.store` — addresses and logins are unchanged.
+- **New logo**: an envelope with a letter peeking out (SVG, white on the
+  blue tile), replacing the plain "T" lettermark in every header (owner,
+  guest, setup).
+- **Simpler, more descriptive design** (owner + guest, no feature removed):
+  the owner Inbox now groups the address chips, search, Check now and
+  Unread filter plus the "Last checked" note into a single controls card
+  instead of four separate stacked blocks; buttons say what they do —
+  "All" → "All addresses", "+ New" → "+ New address", "Refresh" →
+  "Check now", "Unread" → "Unread only". On the guest page, "Change
+  address" → "New address", "Refresh" → "Check now", and the warning
+  under the address is one short line.
 - No Worker change — Worker v6 still applies.
 
 ## What's new in v9 (2026-11-12) — typography + consistent icons
