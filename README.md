@@ -11,10 +11,13 @@ Satu file `index.html` — buka langsung di browser, tanpa build, tanpa install.
   sementara acak `tmp-xxxxxxxxxx@terablox.store` dan hanya bisa **baca**
   email yang masuk ke alamat itu saja. Tidak bisa mengirim, tidak bisa
   melihat inbox, alamat, atau pengaturan pemilik. Tidak ada lagi tombol
-  login Pemilik di halaman ini.
-- **`/admin` — Pemilik:** login dengan alamat Worker Cloudflare + kata
-  sandi (file `admin.html`, salinan dari `index.html` dengan mode boot
-  Pemilik). Akses penuh: semua alamat `@terablox.store`, kirim email,
+  login Pemilik di halaman ini. **Maksimal 2 alamat sementara per browser**
+  (tersimpan di localStorage) — alamat ke-2 dibuat lewat tombol "Ganti
+  alamat", alamat ke-3 ditolak; kedua alamat bisa dipilih lewat chip.
+- **`/admin` — Pemilik:** login HANYA dengan kata sandi Worker (alamat
+  Worker sudah diatur di dalam file, jadi tidak perlu dimasukkan lagi)
+  — file `admin.html`, salinan dari `index.html` dengan mode boot Pemilik.
+  Akses penuh: semua alamat `@terablox.store`, kirim email,
   ganti alamat inbox ala temp-mail (chip alamat di atas Kotak Masuk),
   kelola alamat.
 

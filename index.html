@@ -160,7 +160,7 @@ let cfg = {
 let identities = LS.get("identities", []);
 let sentLocal = LS.get("sent", []);
 let readFlags = LS.get("read", {});
-let state = { tab:"inbox", search:"", messages:[], loading:false, error:null, openId:null, detail:null, detailLoading:false, compose:null, toast:null, setupStep:1, lastSync:null, showPass:false, activeAddress: LS.get("active_address","")||"", addrManageOpen:false, mode:BOOT_MODE, guestAddress: LS.get("guest_address","")||"", guestMessages:[], guestLoading:false, guestError:null, guestOpenId:null, guestDetail:null, guestDetailLoading:false };
+let state = { tab:"inbox", search:"", messages:[], loading:false, error:null, openId:null, detail:null, detailLoading:false, compose:null, toast:null, setupStep:1, lastSync:null, showPass:false, activeAddress: LS.get("active_address","")||"", addrManageOpen:false, mode:BOOT_MODE, guestAddress: LS.get("guest_address","")||"", guestCreated: LS.get("guest_created",[])||[], guestMessages:[], guestLoading:false, guestError:null, guestOpenId:null, guestDetail:null, guestDetailLoading:false };
 function saveCfg(){ LS.set("proxy_url",cfg.proxyUrl); LS.set("proxy_password",cfg.proxyPassword); LS.set("domain",cfg.domain); }
 function saveIdent(){ LS.set("identities",identities); }
 function saveSent(){ LS.set("sent",sentLocal); }
@@ -314,8 +314,8 @@ function wizardHtml(){
   if(s===1){
     return '<div class="card card-pad"><h1 style="margin-bottom:6px">Hubungkan email kamu</h1>'
       +'<p class="muted" style="margin:0 0 18px">Webmail ini terhubung lewat Worker Cloudflare milikmu — semacam jembatan aman ke Resend. API key Resend tersimpan di Worker, bukan di file ini.</p>'
-      +'<div class="field"><label for="w-url">Alamat Worker kamu</label><input id="w-url" type="url" placeholder="https://nama-worker.kamu.workers.dev" value="'+esc(cfg.proxyUrl)+'"><p class="hint">Alamat ini muncul setelah kamu deploy <b>worker.js</b> di Cloudflare. Bentuknya selalu diakhiri <b>.workers.dev</b>.</p></div>'
-      +'<div class="field"><label for="w-pass">Kata sandi Worker</label><div class="input-row"><input id="w-pass" type="'+(state.showPass?"text":"password")+'" placeholder="Sama persis dengan yang kamu set di Worker" value="'+esc(cfg.proxyPassword)+'"><button class="icon-btn" type="button" onclick="togglePass()" title="Lihat / sembunyikan kata sandi">'+(state.showPass?"🙈":"👁")+'</button></div><p class="hint">Ini kata sandi yang kamu buat sendiri di Worker (bukan API key Resend). Huruf besar-kecil berpengaruh.</p></div>'
+      +(PUBLIC_WORKER_URL?'<p class="muted" style="margin:0 0 18px">Alamat Worker sudah diatur di file ini \u2014 kamu hanya perlu kata sandi.</p>':'<div class="field"><label for="w-url">Alamat Worker kamu</label><input id="w-url" type="url" placeholder="https://nama-worker.kamu.workers.dev" value="'+esc(cfg.proxyUrl)+'"><p class="hint">Alamat ini muncul setelah kamu deploy <b>worker.js</b> di Cloudflare. Bentuknya selalu diakhiri <b>.workers.dev</b>.</p></div>')
++'<div class="field"><label for="w-pass">Kata sandi Worker</label><div class="input-row"><input id="w-pass" type="'+(state.showPass?"text":"password")+'" placeholder="Sama persis dengan yang kamu set di Worker" value="'+esc(cfg.proxyPassword)+'"><button class="icon-btn" type="button" onclick="togglePass()" title="Lihat / sembunyikan kata sandi">'+(state.showPass?"🙈":"👁")+'</button></div><p class="hint">Ini kata sandi yang kamu buat sendiri di Worker (bukan API key Resend). Huruf besar-kecil berpengaruh.</p></div>'
       +'<p class="err" id="wizard-msg"></p>'
       +'<button class="btn btn-primary btn-block" id="wizard-test" onclick="doWizardTest()">Tes koneksi →</button>'
       +'<details class="help"><summary>Belum punya Worker? Ikuti 3 langkah ini</summary><ol><li>Buka Cloudflare → Workers &amp; Pages → Create Worker → beri nama → Deploy.</li><li>Edit code → hapus isinya → tempel seluruh isi <code>worker.js</code> → Deploy.</li><li>Settings → Variables and Secrets → tambah 2 secret: <code>RESEND_API_KEY</code> (key Resend kamu) dan <code>PROXY_PASSWORD</code> (kata sandi bebas buatanmu). Salin alamat Worker-nya ke kolom di atas.</li></ol><p class="small" style="margin-top:10px">Panduan lengkap ada di <b>PANDUAN.txt</b> di paket yang sama.</p></details></div>';
@@ -334,11 +334,12 @@ function wizardHtml(){
     +'<button class="btn btn-primary btn-block" onclick="finishWizard()">Buka Kotak Masuk →</button></div>';
 }
 function togglePass(){ state.showPass=!state.showPass; render(); }
-function saveWizardFields(){ const u=document.getElementById("w-url"), p=document.getElementById("w-pass"); if(u) cfg.proxyUrl=u.value.trim(); if(p) cfg.proxyPassword=p.value; saveCfg(); }
+function saveWizardFields(){ const u=document.getElementById("w-url"), p=document.getElementById("w-pass"); if(u) cfg.proxyUrl=u.value.trim(); else if(PUBLIC_WORKER_URL) cfg.proxyUrl=PUBLIC_WORKER_URL; if(p) cfg.proxyPassword=p.value; saveCfg(); }
 async function doWizardTest(){
   saveWizardFields();
   const btn=document.getElementById("wizard-test"), m=document.getElementById("wizard-msg");
-  if(!cfg.proxyUrl || !cfg.proxyPassword){ if(m) m.textContent="Isi dulu alamat Worker dan kata sandinya."; return; }
+  if(!cfg.proxyUrl){ if(m) m.textContent="Isi dulu alamat Worker-nya."; return; }
+  if(!cfg.proxyPassword){ if(m) m.textContent="Isi dulu kata sandi Worker-nya."; return; }
   if(btn){ btn.disabled=true; btn.textContent="Menguji…"; }
   try{ await testConnection(); state.setupStep=2; render(); }
   catch(e){ if(m) m.textContent=e.message||"Koneksi gagal."; if(btn){ btn.disabled=false; btn.textContent="Tes koneksi →"; } }
@@ -391,28 +392,34 @@ function genGuestAddress(){
   let s=""; for(let i=0;i<10;i++) s+=chars[buf[i]%chars.length];
   return "tmp-"+s+"@"+cfg.domain.toLowerCase();
 }
+function saveGuestCreated(){ LS.set("guest_created", state.guestCreated); }
+function switchGuestAddress(email){
+  email=(email||"").toLowerCase();
+  if(!state.guestCreated.includes(email)) return;
+  state.guestAddress=email; LS.set("guest_address", email);
+  state.guestMessages=[]; state.guestOpenId=null; state.guestDetail=null; render(); loadGuestInbox();
+}
 function enterGuest(){
   if(!guestBase()){ toast("Mode tamu belum diaktifkan di web ini."); return; }
-  if(!state.guestAddress){ state.guestAddress=genGuestAddress(); LS.set("guest_address", state.guestAddress); }
+  if(!state.guestAddress){
+    if(state.guestCreated.length){ state.guestAddress=state.guestCreated[0]; }
+    else { state.guestAddress=genGuestAddress(); state.guestCreated.push(state.guestAddress); saveGuestCreated(); }
+    LS.set("guest_address", state.guestAddress);
+  }
   state.mode="guest"; state.search=""; render(); loadGuestInbox();
 }
 function rotateGuestAddress(){
-  state.guestAddress=genGuestAddress(); LS.set("guest_address", state.guestAddress);
+  if(state.guestCreated.length>=2){ toast("Maksimal 2 alamat sementara \u2014 kamu sudah memakai keduanya. Ketuk salah satu di bawah untuk beralih."); return; }
+  state.guestAddress=genGuestAddress(); state.guestCreated.push(state.guestAddress); saveGuestCreated(); LS.set("guest_address", state.guestAddress);
   state.guestMessages=[]; state.guestOpenId=null; state.guestDetail=null; render(); loadGuestInbox();
-  toast("Alamat sementara baru dibuat.");
-}
-function forgetGuestAddress(){
-  state.guestAddress=""; LS.set("guest_address", "");
-  state.guestMessages=[]; state.guestOpenId=null; state.guestDetail=null;
-  enterGuest();
-  toast("Alamat lama dilupakan \u2014 ini alamat sementaramu yang baru.");
+  toast("Alamat sementara baru dibuat ("+state.guestCreated.length+"/2).");
 }
 function lockOwner(){ location.href="./"; }
 function wipeAllData(){
   if(!confirm("Hapus SEMUA data Terablox Mail di browser ini? Alamat Worker, kata sandi, nama pengirim, terkirim, sudah-dibaca, dan alamat tamu akan hilang.")) return;
-  ["proxy_url","proxy_password","domain","identities","sent","read","active_address","guest_address"].forEach(k=>{ try{ localStorage.removeItem("tbm_"+k); }catch(e){} });
+  ["proxy_url","proxy_password","domain","identities","sent","read","active_address","guest_address","guest_created"].forEach(k=>{ try{ localStorage.removeItem("tbm_"+k); }catch(e){} });
   cfg={proxyUrl:"",proxyPassword:"",domain:"terablox.store"}; identities=[]; sentLocal=[]; readFlags={};
-  state.messages=[]; state.activeAddress=""; state.guestAddress=""; state.guestMessages=[];
+  state.messages=[]; state.activeAddress=""; state.guestAddress=""; state.guestCreated=[]; state.guestMessages=[];
   state.mode="owner"; state.tab="inbox"; state.setupStep=1; render();
 }
 async function loadGuestInbox(){
@@ -477,8 +484,11 @@ function guestReadHtml(){
 }
 function guestHtml(){
   const a=state.guestAddress||"";
-  return '<div class="card card-pad section-card" style="text-align:center"><p class="small" style="margin:0 0 6px">Alamat sementara kamu</p><p style="font-family:monospace;font-size:17px;font-weight:800;word-break:break-all;margin:0 0 12px">'+esc(a)+'</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn btn-primary" onclick="copyAddress(\''+esc(a)+'\')">📋 Salin alamat</button><button class="btn" onclick="loadGuestInbox()">↻ Perbarui</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"><button class="btn" onclick="rotateGuestAddress()">🔄 Ganti alamat</button><button class="btn" onclick="forgetGuestAddress()">Lupakan alamat ini</button></div><p class="small" style="margin:12px 0 0">Siapa pun yang tahu alamat ini bisa membaca inbox-nya — jangan pakai untuk hal penting. Email dicek otomatis tiap 2 menit selama halaman terbuka.</p></div>'
-    +'<div class="toolbar"><div class="search"><span>🔍</span><input id="search-input" type="search" placeholder="Cari pengirim atau subjek…" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div></div>'
+  const n=state.guestCreated.length;
+  const maxed=n>=2;
+  const chips=n>1 ? '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px">'+state.guestCreated.map(e=>'<button class="chip" style="'+(e===a?"background:var(--accent);color:#fff;border-color:var(--accent);font-weight:800;":"")+'" onclick="switchGuestAddress(\''+esc(e)+'\')">'+esc(e.split("@")[0])+'</button>').join("")+'</div>' : '';
+  return '<div class="card card-pad section-card" style="text-align:center"><p class="small" style="margin:0 0 6px">Alamat sementara kamu ('+n+'/2)</p><p style="font-family:monospace;font-size:17px;font-weight:800;word-break:break-all;margin:0 0 12px">'+esc(a)+'</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn btn-primary" onclick="copyAddress(\''+esc(a)+'\')">\uD83D\uDCCB Salin alamat</button><button class="btn" onclick="loadGuestInbox()">\u21BB Perbarui</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"><button class="btn" onclick="rotateGuestAddress()">\uD83D\uDD04 Ganti alamat</button></div>'+chips+(maxed?'<p class="small" style="margin:12px 0 0">Kamu sudah memakai 2/2 alamat sementara (maksimal). Ketuk salah satu alamat di atas untuk beralih.</p>':'<p class="small" style="margin:12px 0 0">Siapa pun yang tahu alamat ini bisa membaca inbox-nya \u2014 jangan pakai untuk hal penting. Email dicek otomatis tiap 2 menit selama halaman terbuka.</p>')+'</div>'
+    +'<div class="toolbar"><div class="search"><span>\uD83D\uDD0D</span><input id="search-input" type="search" placeholder="Cari pengirim atau subjek\u2026" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div></div>'
     + guestListHtml();
 }
 function computeAddresses(){
@@ -675,6 +685,10 @@ function render(){
   renderToast();
 }
 /* Init */
+/* Migrasi: alamat tamu lama (sebelum ada batas 2) dihitung sebagai alamat ke-1. */
+if(!Array.isArray(state.guestCreated)) state.guestCreated=[];
+state.guestCreated=state.guestCreated.filter(e=>typeof e==="string" && /^tmp-[a-z0-9]{10}@/.test(e)).slice(0,2);
+if(!state.guestCreated.length && state.guestAddress){ state.guestCreated=[state.guestAddress]; saveGuestCreated(); }
 /* Boot: halaman utama langsung mode Tamu; /admin langsung mode Pemilik. */
 if(BOOT_MODE==="owner"){ state.mode="owner"; } else { state.mode="guest"; }
 if(!configured()){ state.setupStep=1; }
