@@ -1,51 +1,51 @@
 # Terablox Mail
 
-Webmail single-file untuk `@terablox.store`, di-host di GitHub Pages:
+Single-file webmail for `@terablox.store`, hosted on GitHub Pages:
 **https://moloqo.github.io/terablox-mail/**
 
-Satu file `index.html` — buka langsung di browser, tanpa build, tanpa install.
+One `index.html` file — open it straight in the browser, no build, no install.
 
-## Dua halaman (bukan lagi satu layar pilih mode)
+## Two pages (no longer a single mode-picker screen)
 
-- **Halaman utama `/` — Tamu (publik):** pengunjung langsung dapat alamat
-  sementara acak `tmp-xxxxxxxxxx@terablox.store` dan hanya bisa **baca**
-  email yang masuk ke alamat itu saja. Tidak bisa mengirim, tidak bisa
-  melihat inbox, alamat, atau pengaturan pemilik. Tidak ada lagi tombol
-  login Pemilik di halaman ini. **Maksimal 3 alamat sementara** — alamat
-  TIDAK dibuat di browser, tapi diminta ke Worker (`POST
-  /api/public/create-address`) yang membuat + mencatatnya di Cloudflare KV
-  per IP pengunjung (maks 3 per IP, selamanya). Alamat ke-2 dan ke-3 dibuat lewat
-  tombol "Ganti alamat", alamat ke-3 ditolak server; kedua alamat bisa
-  dipilih lewat chip.
-- **`/admin` — Pemilik:** login HANYA dengan kata sandi Worker (alamat
-  Worker sudah diatur di dalam file, jadi tidak perlu dimasukkan lagi)
-  — file `admin.html`, salinan dari `index.html` dengan mode boot Pemilik.
-  Akses penuh: semua alamat `@terablox.store`, kirim email,
-  ganti alamat inbox ala temp-mail (chip alamat di atas Kotak Masuk),
-  kelola alamat.
+- **Main page `/` — Guest (public):** visitors instantly get a random
+  temporary address `tmp-xxxxxxxxxx@terablox.store` and can only **read**
+  mail sent to that address. They cannot send, cannot see the owner inbox,
+  addresses, or settings. There is no owner login button on this page.
+  **Maximum 3 temporary addresses** — addresses are NOT created in the
+  browser; they are requested from the Worker (`POST
+  /api/public/create-address`), which creates + records them in Cloudflare KV
+  per visitor IP (max 3 per IP, forever). The 2nd and 3rd addresses are
+  created with the "Change address" button; a 4th is refused by the server;
+  both addresses can be picked via the chips.
+- **`/admin` — Owner:** login with ONLY the Worker password (the Worker
+  URL is already set inside the file, so it never needs to be entered)
+  — file `admin.html`, a copy of `index.html` with owner boot mode.
+  Full access: all `@terablox.store` addresses, send mail,
+  temp-mail-style inbox switching (address chips above the Inbox),
+  address management.
 
-## Cara kerja
+## How it works
 
-- Email dikirim/diterima lewat [Resend](https://resend.com) (free tier),
-  domain `terablox.store` dengan MX catch-all — alamat apa pun langsung aktif.
-- `index.html` bicara ke Cloudflare Worker (`worker.js`, tidak ada di repo
-  ini — di-deploy terpisah di Cloudflare) yang meneruskan request ke API
-  Resend. API key Resend dan kata sandi proxy hanya tersimpan sebagai secret
-  di Worker, **tidak pernah** tertulis di file ini.
-- Rute publik Worker (`/api/public/*`) hanya melayani alamat `tmp-` acak,
-  hanya baca, dan difilter di server per alamat penerima. Kill-switch:
-  set `PUBLIC_ENABLED=false` di Worker lalu Deploy.
-- Alamat Worker publik diatur di dalam `index.html` (`PUBLIC_WORKER_URL`).
-- **Pencatatan server (KV, wajib supaya batas 3 alamat ditegakkan server):**
-  di Cloudflare dashboard → Workers & Pages → KV → Create a namespace
-  (mis. `terablox-guest`), lalu di Settings Worker → Variables → KV
-  Namespace Bindings → Add binding: Variable name `GUEST_KV`, pilih
-  namespace tadi → Deploy. Tanpa binding ini, pembuatan alamat tetap jalan
-  tapi tidak tercatat (yang berlaku hanya batas di browser). Catatan KV:
-  key `guest-ip:<IP>` → `{addresses:[...], updated_at}`, tanpa TTL (selamanya).
+- Mail is sent/received via [Resend](https://resend.com) (free tier),
+  domain `terablox.store` with MX catch-all — any address works right away.
+- `index.html` talks to a Cloudflare Worker (`worker.js`, not in this repo
+  — deployed separately on Cloudflare) that forwards requests to the Resend
+  API. The Resend API key and proxy password live only as secrets
+  in the Worker, **never** written in this file.
+- The Worker public routes (`/api/public/*`) only serve random `tmp-`
+  addresses, read-only, and are filtered server-side per recipient address.
+  Kill-switch: set `PUBLIC_ENABLED=false` in the Worker, then Deploy.
+- The public Worker URL is set inside `index.html` (`PUBLIC_WORKER_URL`).
+- **Server-side recording (KV, required so the 3-address cap is enforced
+  by the server):** in the Cloudflare dashboard → Workers & Pages → KV →
+  Create a namespace (e.g. `terablox-guest`), then in the Worker Settings →
+  Variables → KV Namespace Bindings → Add binding: Variable name `GUEST_KV`,
+  pick that namespace → Deploy. Without this binding, address creation still
+  works but is not recorded (only the browser cap applies). KV record:
+  key `guest-ip:<IP>` → `{addresses:[...], updated_at}`, no TTL (forever).
 
-## File lain
+## Other files
 
-- `PANDUAN.txt` — panduan pemasangan dari nol (di folder terablox-mail-proxy,
-  tidak ikut di-deploy ke Pages).
-- `worker.js` — kode Cloudflare Worker v3 (di-deploy manual di Cloudflare).
+- `PANDUAN.txt` — setup guide from scratch, in Indonesian (in the
+  terablox-mail-proxy folder, not deployed to Pages).
+- `worker.js` — Cloudflare Worker v6 code (deployed manually on Cloudflare).

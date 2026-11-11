@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -168,10 +168,10 @@ function saveRead(){ LS.set("read",readFlags); }
 function configured(){ return cfg.proxyUrl.trim().length>0 && cfg.proxyPassword.length>0; }
 function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function parseAddress(raw){ const m=String(raw||"").match(/^\s*(.*?)\s*<([^>]+)>\s*$/); if(m) return {name:m[1].replace(/^"|"$/g,""), email:m[2].trim()}; return {name:"", email:String(raw||"").trim()}; }
-function displaySender(raw){ const p=parseAddress(raw); return p.name||p.email||"(tidak dikenal)"; }
+function displaySender(raw){ const p=parseAddress(raw); return p.name||p.email||"(unknown)"; }
 function initialsOf(raw){ const l=displaySender(raw); if(l.includes("@")){ const local=l.split("@")[0]; const s=local.split(/[._-]+/).filter(Boolean); return (s.length>1?(s[0][0]+s[1][0]):local.slice(0,2)).toUpperCase(); } const p=l.split(/\s+/).filter(Boolean); return (p.length>1?(p[0][0]+p[1][0]):l.slice(0,2)).toUpperCase(); }
-function fmtListDate(iso){ const d=new Date(iso), n=new Date(); if(d.toDateString()===n.toDateString()) return d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}); const y=new Date(n); y.setDate(n.getDate()-1); if(d.toDateString()===y.toDateString()) return "Kemarin"; if(d.getFullYear()===n.getFullYear()) return d.toLocaleDateString("id-ID",{day:"numeric",month:"short"}); return d.toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"}); }
-function fmtFullDate(iso){ return new Date(iso).toLocaleString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}); }
+function fmtListDate(iso){ const d=new Date(iso), n=new Date(); if(d.toDateString()===n.toDateString()) return d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}); const y=new Date(n); y.setDate(n.getDate()-1); if(d.toDateString()===y.toDateString()) return "Yesterday"; if(d.getFullYear()===n.getFullYear()) return d.toLocaleDateString("en-US",{day:"numeric",month:"short"}); return d.toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"}); }
+function fmtFullDate(iso){ return new Date(iso).toLocaleString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}); }
 function fmtSize(b){ if(!b&&b!==0) return ""; if(b<1024) return b+" B"; if(b<1048576) return (b/1024).toFixed(1)+" KB"; return (b/1048576).toFixed(1)+" MB"; }
 function splitAddresses(v){ return String(v||"").split(/[,;]/).map(x=>x.trim()).filter(Boolean); }
 function snippetFrom(text, html){ let s=text||""; if(!s&&html) s=html.replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<[^>]+>/g," "); return s.replace(/\s+/g," ").trim().slice(0,180); }
@@ -185,20 +185,20 @@ function renderToast(){ document.getElementById("toast-root").innerHTML = state.
 /* ===== Lapisan proxy: SATU-SATUNYA jalan ke Resend (kontrak worker.js tidak berubah) ===== */
 function friendlyResendError(status, data){
   const msg = data && data.message ? data.message : "";
-  if(status===401) return "Kata sandi / API key tidak cocok. Cek kata sandi di Worker kamu.";
-  if(status===403) return "API key Resend tidak punya izin baca. Pastikan API key dibuat dengan Full access di dashboard Resend.";
-  if(status===429) return "Kuota gratis Resend habis (100 email/hari, 3.000/bulan). Coba lagi besok.";
-  if(status===422) return "Resend menolak email ini: "+(msg||"alamat atau isi email tidak valid.");
-  return msg || ("Resend mengembalikan error ("+status+").");
+  if(status===401) return "Password / API key mismatch. Check the password in your Worker.";
+  if(status===403) return "The Resend API key has no read permission. Make sure it was created with Full access in the Resend dashboard.";
+  if(status===429) return "The free Resend quota is used up (100 emails/day, 3,000/month). Try again tomorrow.";
+  if(status===422) return "Resend rejected this email: "+(msg||"the address or content is invalid.");
+  return msg || ("Resend returned an error ("+status+").");
 }
 async function proxyFetch(pathSuffix, options){
   const base = cfg.proxyUrl.trim().replace(/\/+$/,"");
-  if(!base) throw new Error("Alamat Worker belum diisi. Ikuti langkah 1 dulu ya.");
+  if(!base) throw new Error("The Worker URL is not set yet. Please complete step 1 first.");
   let res;
   try{ res = await fetch(base+pathSuffix, options); }
-  catch(e){ throw new Error("Tidak bisa menghubungi Worker. Cek alamatnya dan koneksi internet kamu."); }
+  catch(e){ throw new Error("Could not reach the Worker. Check its URL and your internet connection."); }
   const json = await res.json().catch(()=>null);
-  if(!res.ok){ throw new Error((json && json.error) || ("Worker mengembalikan error ("+res.status+").")); }
+  if(!res.ok){ throw new Error((json && json.error) || ("The Worker returned an error ("+res.status+").")); }
   return json;
 }
 async function resend(method, path, opts){
@@ -233,7 +233,7 @@ async function loadInbox(){
       after = items.length ? items[items.length-1].id : null;
       page++;
     }
-    state.messages = all.map(m=>({ id:m.id, from:m.from||"", to:m.to||[], subject:m.subject||"(tanpa subjek)", created_at:m.created_at, attachments:m.attachments||[], snippet:"", _raw:m }));
+    state.messages = all.map(m=>({ id:m.id, from:m.from||"", to:m.to||[], subject:m.subject||"(no subject)", created_at:m.created_at, attachments:m.attachments||[], snippet:"", _raw:m }));
     state.lastSync = new Date().toISOString();
     render();
     let fetched=0;
@@ -241,40 +241,40 @@ async function loadInbox(){
       if(fetched>=20) break;
       try{ const full = await resend("GET","/emails/receiving/"+encodeURIComponent(m.id)); m.snippet = snippetFrom(full.text, full.html); fetched++; if(state.tab==="inbox") renderListOnly(); }catch(e){}
     }
-  }catch(e){ state.error = e.message||"Gagal memuat kotak masuk."; }
+  }catch(e){ state.error = e.message||"Failed to load the inbox."; }
   state.loading=false; render();
 }
 async function openMessage(id){
   state.openId=id; state.detail=null; state.detailLoading=true; render();
   readFlags[id]=true; saveRead();
   try{ const full = await resend("GET","/emails/receiving/"+encodeURIComponent(id)); state.detail=full; }
-  catch(e){ state.detail={ _error:e.message||"Gagal memuat isi email." }; }
+  catch(e){ state.detail={ _error:e.message||"Failed to load this email." }; }
   state.detailLoading=false; render();
 }
 async function downloadAttachment(emailId, attId, filename){
   try{
-    toast("Menyiapkan lampiran…");
+    toast("Preparing attachment…");
     const meta = await resend("GET","/emails/receiving/"+encodeURIComponent(emailId)+"/attachments/"+encodeURIComponent(attId));
-    if(!meta || !meta.download_url) throw new Error("Resend tidak memberikan link unduhan untuk lampiran ini.");
-    const a=document.createElement("a"); a.href=meta.download_url; a.download=meta.filename||filename||"lampiran"; a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove();
-  }catch(e){ toast(e.message||"Gagal mengunduh lampiran."); }
+    if(!meta || !meta.download_url) throw new Error("Resend did not provide a download link for this attachment.");
+    const a=document.createElement("a"); a.href=meta.download_url; a.download=meta.filename||filename||"attachment"; a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ toast(e.message||"Failed to download the attachment."); }
 }
 async function sendCurrentCompose(){
   const c=state.compose; if(!c) return;
   const identity = identities.find(i=>i.email===c.fromEmail) || identities[0];
-  if(!identity) throw new Error("Belum ada nama pengirim. Tambahkan dulu di Pengaturan.");
+  if(!identity) throw new Error("No sender name yet. Add one in Settings first.");
   const to=splitAddresses(c.to), cc=splitAddresses(c.cc), bcc=splitAddresses(c.bcc);
-  if(!to.length) throw new Error("Isi minimal satu alamat tujuan.");
-  if(!c.body.trim()) throw new Error("Isi email masih kosong.");
+  if(!to.length) throw new Error("Enter at least one recipient address.");
+  if(!c.body.trim()) throw new Error("The email body is empty.");
   const headers={}; if(c.inReplyTo){ headers["In-Reply-To"]=c.inReplyTo; headers["References"]=c.references||c.inReplyTo; }
-  const payload={ from: identity.name? (identity.name+" <"+identity.email+">") : identity.email, to:to, subject:c.subject||"(tanpa subjek)", text:c.body, html:textToHtml(c.body) };
+  const payload={ from: identity.name? (identity.name+" <"+identity.email+">") : identity.email, to:to, subject:c.subject||"(no subject)", text:c.body, html:textToHtml(c.body) };
   if(cc.length) payload.cc=cc; if(bcc.length) payload.bcc=bcc; if(Object.keys(headers).length) payload.headers=headers;
   const data = await resend("POST","/emails",{body:payload});
   sentLocal.unshift({ id: data&&data.id?data.id:("local-"+Date.now()), from:identity.email, to:to, subject:payload.subject, body_text:c.body, created_at:new Date().toISOString() });
   saveSent();
-  state.compose=null; state.tab="sent"; render(); toast("Email terkirim.");
+  state.compose=null; state.tab="sent"; render(); toast("Email sent.");
 }
-/* Perbarui otomatis tiap 2 menit selama file ini terbuka & tab Kotak Masuk aktif */
+/* Refresh otomatis tiap 2 menit selama file ini terbuka & tab Inbox aktif */
 setInterval(()=>{ if(state.mode==="guest" && state.guestAddress && !state.guestLoading && !document.hidden && !state.guestOpenId) loadGuestInbox(); if(configured() && state.mode==="owner" && state.tab==="inbox" && !state.loading && !document.hidden && !state.openId && !state.compose) loadInbox(); }, 120000);
 </script>
 <script>
@@ -293,64 +293,64 @@ function filteredMessages(){
 }
 function setActiveAddress(v){ state.activeAddress=(v||"").toLowerCase(); LS.set("active_address", state.activeAddress); state.search=""; render(); }
 function statusPill(){
-  if(state.mode==="guest") return '<span class="status off"><span class="dot"></span>\uD83D\uDC64 Mode Tamu</span>';
-  if(configured()) return '<span class="status on"><span class="dot"></span>Terhubung</span>';
-  return '<span class="status off"><span class="dot"></span>Belum terhubung</span>';
+  if(state.mode==="guest") return '<span class="status off"><span class="dot"></span>\uD83D\uDC64 Guest Mode</span>';
+  if(configured()) return '<span class="status on"><span class="dot"></span>Connected</span>';
+  return '<span class="status off"><span class="dot"></span>Not connected</span>';
 }
 function guestBase(){ return (PUBLIC_WORKER_URL || cfg.proxyUrl || "").trim().replace(/\/+$/,""); }
 function stepsHtml(){
   const s = state.setupStep;
   const pct = s===1?33:s===2?66:100;
-  const label = ["","Hubungkan","Nama pengirim","Selesai"][s];
+  const label = ["","Connect","Sender name","Done"][s];
   return '<div class="progress"><i style="width:'+pct+'%"></i></div>'
     +'<div class="steps">'
-    +'<div class="step '+(s>1?"done":s===1?"now":"")+'"><span class="num">'+(s>1?"✓":"1")+'</span><br>Hubungkan</div>'
-    +'<div class="step '+(s>2?"done":s===2?"now":"")+'"><span class="num">'+(s>2?"✓":"2")+'</span><br>Nama pengirim</div>'
-    +'<div class="step '+(s===3?"now":"")+'"><span class="num">3</span><br>Selesai</div></div>'
-    +'<p class="small" style="text-align:center;margin:0 0 18px">Langkah '+s+' dari 3 — '+esc(label)+'</p>';
+    +'<div class="step '+(s>1?"done":s===1?"now":"")+'"><span class="num">'+(s>1?"✓":"1")+'</span><br>Connect</div>'
+    +'<div class="step '+(s>2?"done":s===2?"now":"")+'"><span class="num">'+(s>2?"✓":"2")+'</span><br>Sender name</div>'
+    +'<div class="step '+(s===3?"now":"")+'"><span class="num">3</span><br>Done</div></div>'
+    +'<p class="small" style="text-align:center;margin:0 0 18px">Step '+s+' of 3 — '+esc(label)+'</p>';
 }
 function wizardHtml(){
   const s = state.setupStep;
   if(s===1){
-    return '<div class="card card-pad"><h1 style="margin-bottom:6px">Hubungkan email kamu</h1>'
-      +'<p class="muted" style="margin:0 0 18px">Webmail ini terhubung lewat Worker Cloudflare milikmu — semacam jembatan aman ke Resend. API key Resend tersimpan di Worker, bukan di file ini.</p>'
-      +(PUBLIC_WORKER_URL?'<p class="muted" style="margin:0 0 18px">Alamat Worker sudah diatur di file ini \u2014 kamu hanya perlu kata sandi.</p>':'<div class="field"><label for="w-url">Alamat Worker kamu</label><input id="w-url" type="url" placeholder="https://nama-worker.kamu.workers.dev" value="'+esc(cfg.proxyUrl)+'"><p class="hint">Alamat ini muncul setelah kamu deploy <b>worker.js</b> di Cloudflare. Bentuknya selalu diakhiri <b>.workers.dev</b>.</p></div>')
-+'<div class="field"><label for="w-pass">Kata sandi Worker</label><div class="input-row"><input id="w-pass" type="'+(state.showPass?"text":"password")+'" placeholder="Sama persis dengan yang kamu set di Worker" value="'+esc(cfg.proxyPassword)+'"><button class="icon-btn" type="button" onclick="togglePass()" title="Lihat / sembunyikan kata sandi">'+(state.showPass?"🙈":"👁")+'</button></div><p class="hint">Ini kata sandi yang kamu buat sendiri di Worker (bukan API key Resend). Huruf besar-kecil berpengaruh.</p></div>'
+    return '<div class="card card-pad"><h1 style="margin-bottom:6px">Connect your email</h1>'
+      +'<p class="muted" style="margin:0 0 18px">This webmail connects through your own Cloudflare Worker — a secure bridge to Resend. Your Resend API key lives in the Worker, not in this file.</p>'
+      +(PUBLIC_WORKER_URL?'<p class="muted" style="margin:0 0 18px">The Worker URL is already set in this file — you only need the password.</p>':'<div class="field"><label for="w-url">Your Worker URL</label><input id="w-url" type="url" placeholder="https://your-worker-name.workers.dev" value="'+esc(cfg.proxyUrl)+'"><p class="hint">This URL appears after you deploy <b>worker.js</b> on Cloudflare. It always ends with <b>.workers.dev</b>.</p></div>')
++'<div class="field"><label for="w-pass">Worker password</label><div class="input-row"><input id="w-pass" type="'+(state.showPass?"text":"password")+'" placeholder="Exactly as you set it in the Worker" value="'+esc(cfg.proxyPassword)+'"><button class="icon-btn" type="button" onclick="togglePass()" title="Show / hide password">'+(state.showPass?"🙈":"👁")+'</button></div><p class="hint">This is the password you created in the Worker yourself (not the Resend API key). It is case-sensitive.</p></div>'
       +'<p class="err" id="wizard-msg"></p>'
-      +'<button class="btn btn-primary btn-block" id="wizard-test" onclick="doWizardTest()">Tes koneksi →</button>'
-      +'<details class="help"><summary>Belum punya Worker? Ikuti 3 langkah ini</summary><ol><li>Buka Cloudflare → Workers &amp; Pages → Create Worker → beri nama → Deploy.</li><li>Edit code → hapus isinya → tempel seluruh isi <code>worker.js</code> → Deploy.</li><li>Settings → Variables and Secrets → tambah 2 secret: <code>RESEND_API_KEY</code> (key Resend kamu) dan <code>PROXY_PASSWORD</code> (kata sandi bebas buatanmu). Salin alamat Worker-nya ke kolom di atas.</li></ol><p class="small" style="margin-top:10px">Panduan lengkap ada di <b>PANDUAN.txt</b> di paket yang sama.</p></details></div>';
+      +'<button class="btn btn-primary btn-block" id="wizard-test" onclick="doWizardTest()">Test connection →</button>'
+      +'<details class="help"><summary>No Worker yet? Follow these 3 steps</summary><ol><li>Open Cloudflare → Workers &amp; Pages → Create Worker → give it a name → Deploy.</li><li>Edit code → delete everything → paste the full contents of <code>worker.js</code> → Deploy.</li><li>Settings → Variables and Secrets → add 2 secrets: <code>RESEND_API_KEY</code> (your Resend key) and <code>PROXY_PASSWORD</code> (a password you make up). Copy the Worker URL into the field above.</li></ol><p class="small" style="margin-top:10px">The full guide is in <b>PANDUAN.txt</b> in the same package.</p></details></div>';
   }
   if(s===2){
-    return '<div class="card card-pad"><h1 style="margin-bottom:6px">Kamu mengirim sebagai siapa?</h1>'
-      +'<p class="muted" style="margin:0 0 18px">Email ke alamat apa pun @'+esc(cfg.domain)+' otomatis masuk (tidak perlu dibuat satu-satu). Di sini kamu cukup pilih nama + alamat yang tampil saat mengirim.</p>'
-      +'<div class="field"><label for="w-name">Nama yang tampil</label><input id="w-name" type="text" placeholder="mis. Terablox"></div>'
-      +'<div class="field"><label for="w-email">Alamat pengirim</label><input id="w-email" type="text" placeholder="halo@'+esc(cfg.domain)+'"><p class="hint">Harus memakai @'+esc(cfg.domain)+'.</p></div>'
+    return '<div class="card card-pad"><h1 style="margin-bottom:6px">Who are you sending as?</h1>'
+      +'<p class="muted" style="margin:0 0 18px">Mail to any @'+esc(cfg.domain)+' address arrives automatically (no need to create addresses one by one). Here you just pick the name + address shown when you send.</p>'
+      +'<div class="field"><label for="w-name">Display name</label><input id="w-name" type="text" placeholder="e.g. Terablox"></div>'
+      +'<div class="field"><label for="w-email">Sender address</label><input id="w-email" type="text" placeholder="hello@'+esc(cfg.domain)+'"><p class="hint">Must use @'+esc(cfg.domain)+'.</p></div>'
       +'<p class="err" id="wizard-msg"></p>'
-      +'<button class="btn btn-primary btn-block" onclick="doWizardIdentity()">Simpan &amp; lanjut →</button>'
-      +'<p style="text-align:center;margin:14px 0 0"><button class="btn" style="border:0" onclick="finishWizard()">Lewati dulu</button></p></div>';
+      +'<button class="btn btn-primary btn-block" onclick="doWizardIdentity()">Save &amp; continue →</button>'
+      +'<p style="text-align:center;margin:14px 0 0"><button class="btn" style="border:0" onclick="finishWizard()">Skip for now</button></p></div>';
   }
-  return '<div class="card card-pad" style="text-align:center"><div style="font-size:44px">✅</div><h1 style="margin:10px 0 6px">Siap dipakai!</h1>'
-    +'<p class="muted" style="margin:0 0 18px">Koneksi terhubung dan nama pengirim sudah disimpan. Email masuk akan muncul di Kotak Masuk — tekan <b>Perbarui</b> kapan pun, atau biarkan halaman ini terbuka, email baru dicek otomatis tiap 2 menit.</p>'
-    +'<button class="btn btn-primary btn-block" onclick="finishWizard()">Buka Kotak Masuk →</button></div>';
+  return '<div class="card card-pad" style="text-align:center"><div style="font-size:44px">✅</div><h1 style="margin:10px 0 6px">Ready to go!</h1>'
+    +'<p class="muted" style="margin:0 0 18px">Connected, and your sender name is saved. Incoming mail will show in your Inbox — press <b>Refresh</b> any time, or leave this page open and new mail is checked automatically every 2 minutes.</p>'
+    +'<button class="btn btn-primary btn-block" onclick="finishWizard()">Open Inbox →</button></div>';
 }
 function togglePass(){ state.showPass=!state.showPass; render(); }
 function saveWizardFields(){ const u=document.getElementById("w-url"), p=document.getElementById("w-pass"); if(u) cfg.proxyUrl=u.value.trim(); else if(PUBLIC_WORKER_URL) cfg.proxyUrl=PUBLIC_WORKER_URL; if(p) cfg.proxyPassword=p.value; saveCfg(); }
 async function doWizardTest(){
   saveWizardFields();
   const btn=document.getElementById("wizard-test"), m=document.getElementById("wizard-msg");
-  if(!cfg.proxyUrl){ if(m) m.textContent="Isi dulu alamat Worker-nya."; return; }
-  if(!cfg.proxyPassword){ if(m) m.textContent="Isi dulu kata sandi Worker-nya."; return; }
-  if(btn){ btn.disabled=true; btn.textContent="Menguji…"; }
+  if(!cfg.proxyUrl){ if(m) m.textContent="Enter the Worker URL first."; return; }
+  if(!cfg.proxyPassword){ if(m) m.textContent="Enter the Worker password first."; return; }
+  if(btn){ btn.disabled=true; btn.textContent="Testing…"; }
   try{ await testConnection(); state.setupStep=2; render(); }
-  catch(e){ if(m) m.textContent=e.message||"Koneksi gagal."; if(btn){ btn.disabled=false; btn.textContent="Tes koneksi →"; } }
+  catch(e){ if(m) m.textContent=e.message||"Connection failed."; if(btn){ btn.disabled=false; btn.textContent="Test connection →"; } }
 }
 function doWizardIdentity(){
   const name=document.getElementById("w-name").value.trim();
   const email=document.getElementById("w-email").value.trim().toLowerCase();
   const m=document.getElementById("wizard-msg");
-  if(!name||!email){ if(m) m.textContent="Nama dan alamat email wajib diisi."; return; }
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ if(m) m.textContent="Format alamat email tidak valid."; return; }
-  if(!email.endsWith("@"+cfg.domain.toLowerCase())){ if(m) m.textContent="Alamat harus memakai @"+cfg.domain+"."; return; }
+  if(!name||!email){ if(m) m.textContent="Name and email address are required."; return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ if(m) m.textContent="The email address format is invalid."; return; }
+  if(!email.endsWith("@"+cfg.domain.toLowerCase())){ if(m) m.textContent="The address must use @"+cfg.domain+"."; return; }
   if(!identities.some(i=>i.email===email)) identities.push({id:Date.now(), name:name, email:email});
   saveIdent(); state.setupStep=3; render();
 }
@@ -358,11 +358,11 @@ function finishWizard(){ state.tab="inbox"; render(); loadInbox(); }
 
 function listHtml(){
   const list = filteredMessages();
-  if(state.loading) return '<div class="card empty">Memuat kotak masuk…</div>';
-  if(state.error) return '<div class="card card-pad"><span class="err">'+esc(state.error)+'</span><br><br><button class="btn" onclick="loadInbox()">Coba lagi</button></div>';
+  if(state.loading) return '<div class="card empty">Loading inbox…</div>';
+  if(state.error) return '<div class="card card-pad"><span class="err">'+esc(state.error)+'</span><br><br><button class="btn" onclick="loadInbox()">Try again</button></div>';
   if(!list.length){
-    if(state.activeAddress && !state.search) return '<div class="card empty"><b>Belum ada email ke '+esc(state.activeAddress)+'</b>Alamat ini aktif — email yang dikirim ke sini akan muncul di sini.<br><br><button class="btn" onclick="setActiveAddress(\'\')">Lihat semua alamat</button></div>';
-    return '<div class="card empty"><b>'+(state.search?"Tidak ada hasil":"Belum ada email masuk")+'</b>'+(state.search?"Coba kata kunci lain.":("Email ke alamat apa pun @"+esc(cfg.domain)+" akan muncul di sini.<br>Tekan tombol <b>Perbarui</b> di atas untuk memeriksa sekarang."))+"</div>";
+    if(state.activeAddress && !state.search) return '<div class="card empty"><b>No mail for '+esc(state.activeAddress)+' yet</b>This address is active — mail sent here will show up here.<br><br><button class="btn" onclick="setActiveAddress(\'\')">View all addresses</button></div>';
+    return '<div class="card empty"><b>'+(state.search?"No results":"No incoming mail yet")+'</b>'+(state.search?"Try a different keyword.":("Mail to any @"+esc(cfg.domain)+" address will show up here.<br>Press the <b>Refresh</b> button above to check now."))+"</div>";
   }
   return '<div class="card"><ul class="list" id="mail-list">'+list.map(m=>{
     const unread=!readFlags[m.id];
@@ -380,7 +380,7 @@ function renderListOnly(){ const el=document.getElementById("mail-list"); if(!el
    yang "dibuat" — alamat apa pun @domain langsung aktif tanpa didaftarkan.
    Jadi daftar ini digabung dari 2 sumber yang memang bisa dilihat webmail:
    (1) nama pengirim yang kamu simpan di browser ini (terdaftar),
-   (2) alamat yang pernah menerima email, diambil dari kolom "Ke" di Kotak Masuk. */
+   (2) alamat yang pernah menerima email, diambil dari kolom "Ke" di Inbox. */
 /* ===== Mode Tamu (publik) =====
    Tamu TIDAK PERNAH memegang kata sandi / API key / inbox pemilik.
    Mereka hanya bicara ke rute /api/public/* di Worker (tanpa password),
@@ -394,22 +394,22 @@ function switchGuestAddress(email){
   state.guestMessages=[]; state.guestOpenId=null; state.guestDetail=null; render(); loadGuestInbox();
 }
 /* Minta alamat tmp- baru ke Worker (POST /api/public/create-address).
-   Worker yang membuat + mencatatnya di KV (maks 2 per IP per 7 hari),
+   Worker yang membuat + mencatatnya di KV (max 3 per IP, forever),
    jadi batas ini tidak bisa diakali dengan hapus data browser. */
 async function mintGuestAddress(){
-  const base=guestBase(); if(!base) return { ok:false, error:"Mode tamu belum diaktifkan di web ini." };
+  const base=guestBase(); if(!base) return { ok:false, error:"Guest mode is not enabled on this site." };
   let res, json=null;
   try{
     res=await fetch(base+"/api/public/create-address", { method:"POST" });
     json=await res.json().catch(()=>null);
-  }catch(e){ return { ok:false, error:"Tidak bisa menghubungi Worker \u2014 periksa koneksi lalu coba lagi." }; }
-  if(!res.ok) return { ok:false, error:(json && json.error) || "Tidak bisa membuat alamat sementara." };
+  }catch(e){ return { ok:false, error:"Could not reach the Worker — check your connection and try again." }; }
+  if(!res.ok) return { ok:false, error:(json && json.error) || "Could not create a temporary address." };
   const addr=json && json.data ? json.data.address : "";
-  if(!addr) return { ok:false, error:"Worker tidak mengembalikan alamat." };
+  if(!addr) return { ok:false, error:"The Worker did not return an address." };
   return { ok:true, address:addr };
 }
 function enterGuest(){
-  if(!guestBase()){ toast("Mode tamu belum diaktifkan di web ini."); return; }
+  if(!guestBase()){ toast("Guest mode is not enabled on this site."); return; }
   if(!state.guestAddress){
     if(state.guestCreated.length){ state.guestAddress=state.guestCreated[0]; LS.set("guest_address", state.guestAddress); }
     else {
@@ -428,19 +428,19 @@ function enterGuest(){
   state.mode="guest"; state.search=""; render(); loadGuestInbox();
 }
 function rotateGuestAddress(){
-  if(state.guestCreated.length>=3){ toast("Maksimal 3 alamat sementara \u2014 kamu sudah memakai ketiganya. Ketuk salah satu di bawah untuk beralih."); return; }
+  if(state.guestCreated.length>=3){ toast("Maximum 3 temporary addresses — you have already used all three. Tap one below to switch."); return; }
   mintGuestAddress().then(m=>{
     if(!m.ok){ toast(m.error); return; }
     state.guestAddress=m.address;
     if(!state.guestCreated.includes(m.address)) state.guestCreated.push(m.address);
     saveGuestCreated(); LS.set("guest_address", state.guestAddress);
     state.guestMessages=[]; state.guestOpenId=null; state.guestDetail=null; render(); loadGuestInbox();
-    toast("Alamat sementara baru dibuat ("+state.guestCreated.length+"/3).");
+    toast("New temporary address created ("+state.guestCreated.length+"/3).");
   });
 }
 function lockOwner(){ location.href="./"; }
 function wipeAllData(){
-  if(!confirm("Hapus SEMUA data Terablox Mail di browser ini? Alamat Worker, kata sandi, nama pengirim, terkirim, sudah-dibaca, dan alamat tamu akan hilang.")) return;
+  if(!confirm("Delete ALL Terablox Mail data in this browser? The Worker URL, password, sender names, sent mail, read marks, and guest addresses will be gone.")) return;
   ["proxy_url","proxy_password","domain","identities","sent","read","active_address","guest_address","guest_created"].forEach(k=>{ try{ localStorage.removeItem("tbm_"+k); }catch(e){} });
   cfg={proxyUrl:"",proxyPassword:"",domain:"terablox.store"}; identities=[]; sentLocal=[]; readFlags={};
   state.messages=[]; state.activeAddress=""; state.guestAddress=""; state.guestCreated=[]; state.guestMessages=[];
@@ -452,9 +452,9 @@ async function loadGuestInbox(){
   try{
     const res=await fetch(base+"/api/public/inbox?to="+encodeURIComponent(state.guestAddress));
     const json=await res.json().catch(()=>null);
-    if(!res.ok) throw new Error((json && json.error) || ("Mode tamu mengembalikan error ("+res.status+")."));
-    state.guestMessages=Array.isArray(json && json.data) ? json.data : [];
-  }catch(e){ state.guestError=e.message||"Gagal memuat inbox tamu."; }
+    if(!res.ok) throw new Error((json && json.error) || ("Guest mode returned an error ("+res.status+")."));
+    state.guestMessages=(Array.isArray(json && json.data) ? json.data : []).map(m=>({...m, subject:m.subject||"(no subject)"}));
+  }catch(e){ state.guestError=e.message||"Failed to load the guest inbox."; }
   state.guestLoading=false; render();
 }
 function filteredGuestMessages(){
@@ -466,57 +466,57 @@ async function openGuestMessage(id){
   try{
     const res=await fetch(guestBase()+"/api/public/read?id="+encodeURIComponent(id)+"&to="+encodeURIComponent(state.guestAddress));
     const json=await res.json().catch(()=>null);
-    if(!res.ok) throw new Error((json && json.error) || "Gagal memuat isi email.");
+    if(!res.ok) throw new Error((json && json.error) || "Failed to load this email.");
     state.guestDetail=json && json.data ? json.data : null;
-  }catch(e){ state.guestDetail={ _error:e.message||"Gagal memuat isi email." }; }
+  }catch(e){ state.guestDetail={ _error:e.message||"Failed to load this email." }; }
   state.guestDetailLoading=false; render();
 }
 function closeGuestRead(){ state.guestOpenId=null; state.guestDetail=null; render(); }
 async function downloadGuestAttachment(emailId, attId, filename){
   try{
-    toast("Menyiapkan lampiran…");
+    toast("Preparing attachment…");
     const res=await fetch(guestBase()+"/api/public/attachment?email="+encodeURIComponent(emailId)+"&att="+encodeURIComponent(attId)+"&to="+encodeURIComponent(state.guestAddress));
     const json=await res.json().catch(()=>null);
     const meta=json && json.data ? json.data : null;
-    if(!res.ok || !meta || !meta.download_url) throw new Error("Resend tidak memberikan link unduhan untuk lampiran ini.");
-    const a=document.createElement("a"); a.href=meta.download_url; a.download=meta.filename||filename||"lampiran"; a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove();
-  }catch(e){ toast(e.message||"Gagal mengunduh lampiran."); }
+    if(!res.ok || !meta || !meta.download_url) throw new Error("Resend did not provide a download link for this attachment.");
+    const a=document.createElement("a"); a.href=meta.download_url; a.download=meta.filename||filename||"attachment"; a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ toast(e.message||"Failed to download the attachment."); }
 }
 function guestListHtml(){
   const list=filteredGuestMessages();
   if(state.guestLoading) return '<div class="card empty">Memuat inbox…</div>';
-  if(state.guestError) return '<div class="card card-pad"><span class="err">'+esc(state.guestError)+'</span><br><br><button class="btn" onclick="loadGuestInbox()">Coba lagi</button></div>';
-  if(!list.length) return '<div class="card empty"><b>'+(state.search?"Tidak ada hasil":"Belum ada email masuk")+'</b>'+(state.search?"Coba kata kunci lain.":("Email yang dikirim ke alamat sementara di atas akan muncul di sini.<br>Tekan <b>Perbarui</b> untuk memeriksa sekarang."))+"</div>";
+  if(state.guestError) return '<div class="card card-pad"><span class="err">'+esc(state.guestError)+'</span><br><br><button class="btn" onclick="loadGuestInbox()">Try again</button></div>';
+  if(!list.length) return '<div class="card empty"><b>'+(state.search?"No results":"No incoming mail yet")+'</b>'+(state.search?"Try a different keyword.":("Mail sent to the temporary address above will show up here.<br>Press <b>Refresh</b> to check now."))+"</div>";
   return '<div class="card"><ul class="list">'+list.map(m=>'<li><button class="mail-row" onclick="openGuestMessage(\''+esc(m.id)+'\')"><span class="avatar">'+esc(initialsOf(m.from))+'</span><span class="row-main"><span class="row-top"><span class="row-from">'+esc(displaySender(m.from))+'</span><span class="row-date">'+esc(fmtListDate(m.created_at))+'</span></span><span class="row-subj">'+esc(m.subject)+'</span></span></button></li>').join("")+"</ul></div>";
 }
 function guestReadHtml(){
   if(!state.guestOpenId) return "";
   let inner="";
-  if(state.guestDetailLoading) inner='<p class="empty">Memuat isi email…</p>';
+  if(state.guestDetailLoading) inner='<p class="empty">Loading email…</p>';
   else if(state.guestDetail && state.guestDetail._error) inner='<div class="card card-pad"><span class="err">'+esc(state.guestDetail._error)+'</span></div>';
   else if(state.guestDetail){
     const m=state.guestDetail; const atts=m.attachments||[];
-    inner='<article class="card card-pad"><h1>'+esc(m.subject||"(tanpa subjek)")+'</h1>'
-      +'<div style="display:flex;gap:12px;margin-top:14px"><span class="avatar">'+esc(initialsOf(m.from||""))+'</span><div style="min-width:0;font-size:14px"><div style="font-weight:700">'+esc(displaySender(m.from||""))+'</div><div style="color:var(--dim);font-family:monospace;font-size:12px;word-break:break-all">'+esc(parseAddress(m.from||"").email)+'</div><div style="color:var(--dim);font-size:12px;margin-top:4px">Kepada: '+esc((m.to||[]).join(", "))+'</div><div style="color:var(--dim);font-size:12px">'+esc(fmtFullDate(m.created_at))+'</div></div></div>'
+    inner='<article class="card card-pad"><h1>'+esc(m.subject||"(no subject)")+'</h1>'
+      +'<div style="display:flex;gap:12px;margin-top:14px"><span class="avatar">'+esc(initialsOf(m.from||""))+'</span><div style="min-width:0;font-size:14px"><div style="font-weight:700">'+esc(displaySender(m.from||""))+'</div><div style="color:var(--dim);font-family:monospace;font-size:12px;word-break:break-all">'+esc(parseAddress(m.from||"").email)+'</div><div style="color:var(--dim);font-size:12px;margin-top:4px">To: '+esc((m.to||[]).join(", "))+'</div><div style="color:var(--dim);font-size:12px">'+esc(fmtFullDate(m.created_at))+'</div></div></div>'
       +'<hr style="border:0;border-top:1px solid var(--border);margin:18px 0">'
-      +(m.html? '<div class="email-body">'+sanitizeHtml(m.html)+"</div>" : '<pre class="plain">'+esc(m.text||"(Email ini tidak punya isi teks.)")+"</pre>")
-      +(atts.length? '<div style="margin-top:20px"><b>Lampiran ('+atts.length+')</b>'+atts.map(a=>'<div class="attach"><span>📎</span><span style="flex:1;min-width:0"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px">'+esc(a.filename||"lampiran")+'</span><span style="font-size:12px;color:var(--dim)">'+esc(a.content_type||"berkas")+" · "+esc(fmtSize(a.size))+'</span></span><button class="btn" style="min-height:40px" onclick="downloadGuestAttachment(\''+esc(state.guestOpenId)+'\',\''+esc(a.id)+'\',\''+esc(a.filename||"lampiran")+'\')">Unduh</button></div>').join("")+"</div>":"")
-      +'<p class="small" style="margin-top:20px">Mode Tamu: baca saja — tidak bisa membalas atau meneruskan.</p>'
+      +(m.html? '<div class="email-body">'+sanitizeHtml(m.html)+"</div>" : '<pre class="plain">'+esc(m.text||"(This email has no text content.)")+"</pre>")
+      +(atts.length? '<div style="margin-top:20px"><b>Attachments ('+atts.length+')</b>'+atts.map(a=>'<div class="attach"><span>📎</span><span style="flex:1;min-width:0"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px">'+esc(a.filename||"attachment")+'</span><span style="font-size:12px;color:var(--dim)">'+esc(a.content_type||"file")+" · "+esc(fmtSize(a.size))+'</span></span><button class="btn" style="min-height:40px" onclick="downloadGuestAttachment(\''+esc(state.guestOpenId)+'\',\''+esc(a.id)+'\',\''+esc(a.filename||"attachment")+'\')">Download</button></div>').join("")+"</div>":"")
+      +'<p class="small" style="margin-top:20px">Guest mode: read-only — you cannot reply or forward.</p>'
       +"</article>";
   }
-  return '<div class="overlay"><div class="overlay-inner"><div class="overlay-head"><button class="icon-btn" onclick="closeGuestRead()" aria-label="Kembali">←</button><span style="font-weight:700">Baca email</span></div>'+inner+"</div></div>";
+  return '<div class="overlay"><div class="overlay-inner"><div class="overlay-head"><button class="icon-btn" onclick="closeGuestRead()" aria-label="Back">←</button><span style="font-weight:700">Read email</span></div>'+inner+"</div></div>";
 }
 function guestHtml(){
   const a=state.guestAddress||"";
   if(!a){
-    if(state.guestLoading) return '<div class="card card-pad" style="text-align:center"><p class="muted">Membuat alamat sementara\u2026</p></div>';
-    return '<div class="card card-pad" style="text-align:center"><div style="font-size:40px">\u2709\uFE0F</div><h1 style="margin:8px 0 6px">Tidak bisa membuat alamat</h1><p class="muted" style="margin:0">'+esc(state.guestError||"Mode tamu belum diaktifkan di web ini.")+'</p><br><button class="btn btn-primary" onclick="enterGuest()">Coba lagi</button></div>';
+    if(state.guestLoading) return '<div class="card card-pad" style="text-align:center"><p class="muted">Creating a temporary address\u2026</p></div>';
+    return '<div class="card card-pad" style="text-align:center"><div style="font-size:40px">\u2709\uFE0F</div><h1 style="margin:8px 0 6px">Could not create an address</h1><p class="muted" style="margin:0">'+esc(state.guestError||"Guest mode is not enabled on this site.")+'</p><br><button class="btn btn-primary" onclick="enterGuest()">Try again</button></div>';
   }
   const n=state.guestCreated.length;
   const maxed=n>=3;
   const chips=n>1 ? '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px">'+state.guestCreated.map(e=>'<button class="chip" style="'+(e===a?"background:var(--accent);color:#fff;border-color:var(--accent);font-weight:800;":"")+'" onclick="switchGuestAddress(\''+esc(e)+'\')">'+esc(e.split("@")[0])+'</button>').join("")+'</div>' : '';
-  return '<div class="card card-pad section-card" style="text-align:center"><p class="small" style="margin:0 0 6px">Alamat sementara kamu ('+n+'/3)</p><p style="font-family:monospace;font-size:17px;font-weight:800;word-break:break-all;margin:0 0 12px">'+esc(a)+'</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn btn-primary" onclick="copyAddress(\''+esc(a)+'\')">\uD83D\uDCCB Salin alamat</button><button class="btn" onclick="loadGuestInbox()">\u21BB Perbarui</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"><button class="btn" onclick="rotateGuestAddress()">\uD83D\uDD04 Ganti alamat</button></div>'+chips+(maxed?'<p class="small" style="margin:12px 0 0">Kamu sudah memakai 3/3 alamat sementara (maksimal, dicatat di server, selamanya). Ketuk salah satu alamat di atas untuk beralih.</p>':'<p class="small" style="margin:12px 0 0">Siapa pun yang tahu alamat ini bisa membaca inbox-nya \u2014 jangan pakai untuk hal penting. Email dicek otomatis tiap 2 menit selama halaman terbuka.</p>')+'</div>'
-    +'<div class="toolbar"><div class="search"><span>\uD83D\uDD0D</span><input id="search-input" type="search" placeholder="Cari pengirim atau subjek\u2026" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div></div>'
+  return '<div class="card card-pad section-card" style="text-align:center"><p class="small" style="margin:0 0 6px">Your temporary address ('+n+'/3)</p><p style="font-family:monospace;font-size:17px;font-weight:800;word-break:break-all;margin:0 0 12px">'+esc(a)+'</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn btn-primary" onclick="copyAddress(\''+esc(a)+'\')">\uD83D\uDCCB Copy address</button><button class="btn" onclick="loadGuestInbox()">\u21BB Refresh</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"><button class="btn" onclick="rotateGuestAddress()">\uD83D\uDD04 Change address</button></div>'+chips+(maxed?'<p class="small" style="margin:12px 0 0">You have used 3/3 temporary addresses (maximum, recorded on the server, forever). Tap one of the addresses above to switch.</p>':'<p class="small" style="margin:12px 0 0">Anyone who knows this address can read its inbox — do not use it for anything important. Mail is checked automatically every 2 minutes while this page is open.</p>')+'</div>'
+    +'<div class="toolbar"><div class="search"><span>\uD83D\uDD0D</span><input id="search-input" type="search" placeholder="Search sender or subject\u2026" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div></div>'
     + guestListHtml();
 }
 function computeAddresses(){
@@ -530,16 +530,16 @@ function computeAddresses(){
 }
 function addrListHtml(){
   const list=computeAddresses();
-  if(!list.length) return '<div class="card empty"><b>Belum ada alamat</b>Buat satu di atas — alamat langsung aktif.</div>';
+  if(!list.length) return '<div class="card empty"><b>No addresses yet</b>Create one above — the address is active right away.</div>';
   return '<div class="card"><ul class="list">'+list.map(a=>{
     const active=a.email===state.activeAddress;
-    const meta=a.count ? a.count+" email"+(a.last?" \u00b7 terakhir "+fmtListDate(a.last):"") : "Belum ada email masuk";
+    const meta=a.count ? a.count+" email"+(a.last?" · last "+fmtListDate(a.last):"") : "No incoming mail yet";
     return '<li><div style="display:flex;gap:8px;align-items:center;padding:12px 14px">'
       +'<button onclick="setActiveAddress(\''+esc(a.email)+'\')" style="flex:1;min-width:0;text-align:left;border:0;background:none;padding:0;cursor:pointer">'
       +'<span style="display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:monospace;font-size:14px;color:'+(active?"var(--accent)":"inherit")+'">'+esc(a.email)+(a.registered?" \u2713":"")+'</span>'
       +'<span style="display:block;font-size:13px;color:var(--dim)">'+esc(meta)+'</span></button>'
-      +(a.registered?"":'<button class="btn" style="min-height:38px" onclick="registerAddress(\''+esc(a.email)+'\')">Daftar</button>')
-      +'<button class="icon-btn" onclick="copyAddress(\''+esc(a.email)+'\')" title="Salin alamat" aria-label="Salin alamat">\uD83D\uDCCB</button>'
+      +(a.registered?"":'<button class="btn" style="min-height:38px" onclick="registerAddress(\''+esc(a.email)+'\')">Register</button>')
+      +'<button class="icon-btn" onclick="copyAddress(\''+esc(a.email)+'\')" title="Copy address" aria-label="Copy address">\uD83D\uDCCB</button>'
       +'</div></li>';
   }).join("")+"</ul></div>";
 }
@@ -547,7 +547,7 @@ function addrChipsHtml(){
   const addrs=computeAddresses();
   if(!addrs.length) return '';
   let h='<div style="display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none">';
-  h+='<button class="chip" style="'+(!state.activeAddress?"background:var(--accent);color:#fff;border-color:var(--accent);font-weight:800;":"")+'" onclick="setActiveAddress(\'\')">Semua</button>';
+  h+='<button class="chip" style="'+(!state.activeAddress?"background:var(--accent);color:#fff;border-color:var(--accent);font-weight:800;":"")+'" onclick="setActiveAddress(\'\')">All</button>';
   addrs.forEach(a=>{
     const local=a.email.split("@")[0];
     const active=a.email===state.activeAddress;
@@ -561,11 +561,11 @@ function toggleAddrManage(){ state.addrManageOpen=!state.addrManageOpen; render(
 function addrManageHtml(){
   const total=computeAddresses().length;
   const open=state.addrManageOpen;
-  let h='<div class="card" style="padding:12px 14px;margin-bottom:12px"><button onclick="toggleAddrManage()" style="width:100%;display:flex;align-items:center;gap:8px;border:0;background:none;padding:4px 2px;font-weight:800;font-size:14.5px;text-align:left">\uD83D\uDCCB Kelola alamat ('+total+')<span style="margin-left:auto;color:var(--dim)">'+(open?"\u25B2":"\u25BC")+'</span></button>';
+  let h='<div class="card" style="padding:12px 14px;margin-bottom:12px"><button onclick="toggleAddrManage()" style="width:100%;display:flex;align-items:center;gap:8px;border:0;background:none;padding:4px 2px;font-weight:800;font-size:14.5px;text-align:left">\uD83D\uDCCB Manage addresses ('+total+')<span style="margin-left:auto;color:var(--dim)">'+(open?"\u25B2":"\u25BC")+'</span></button>';
   if(open){
-    h+='<div style="margin-top:12px"><div class="input-row"><input id="a-name" type="text" placeholder="nama-baru" style="text-transform:lowercase"><span style="align-self:center;color:var(--dim);font-size:14px;white-space:nowrap">@'+esc(cfg.domain)+'</span><button class="btn btn-primary" onclick="createAddress()">\uFF0B Buat</button></div>'
+    h+='<div style="margin-top:12px"><div class="input-row"><input id="a-name" type="text" placeholder="new-name" style="text-transform:lowercase"><span style="align-self:center;color:var(--dim);font-size:14px;white-space:nowrap">@'+esc(cfg.domain)+'</span><button class="btn btn-primary" onclick="createAddress()">\uFF0B Create</button></div>'
     +'<p class="err" id="addr-error"></p>'
-    +'<p class="hint" style="margin:8px 0 0">Ketik nama saja \u2014 alamat langsung aktif. Ketuk alamat di bawah untuk melihat inbox-nya.</p>'
+    +'<p class="hint" style="margin:8px 0 0">Just type a name — the address is active right away. Tap an address below to view its inbox.</p>'
     +'<div id="addr-list" style="margin-top:12px">'+addrListHtml()+'</div></div>';
   }
   return h+'</div>';
@@ -575,113 +575,113 @@ function createAddress(){
   const inp=document.getElementById("a-name"); const err=document.getElementById("addr-error");
   const name=(inp.value||"").trim().toLowerCase();
   if(err) err.textContent="";
-  if(!name){ if(err) err.textContent="Isi dulu nama alamatnya."; return; }
-  if(!validLocalpart(name)){ if(err) err.textContent="Nama tidak valid. Pakai huruf kecil, angka, titik, strip, underscore — diawali dan diakhiri huruf/angka."; return; }
+  if(!name){ if(err) err.textContent="Enter an address name first."; return; }
+  if(!validLocalpart(name)){ if(err) err.textContent="Invalid name. Use lowercase letters, numbers, dots, dashes, underscores — starting and ending with a letter or number."; return; }
   const email=name+"@"+cfg.domain.toLowerCase();
-  if(identities.some(i=>i.email.toLowerCase()===email)){ if(err) err.textContent=email+" sudah terdaftar."; return; }
+  if(identities.some(i=>i.email.toLowerCase()===email)){ if(err) err.textContent=email+" is already registered."; return; }
   const disp=name.charAt(0).toUpperCase()+name.slice(1);
   identities.push({id:Date.now(), name:disp, email:email}); saveIdent();
-  state.activeAddress=email; LS.set("active_address", email); state.search=""; state.tab="inbox"; render(); toast(email+" dibuat & langsung aktif — inbox sudah pindah ke alamat ini.");
+  state.activeAddress=email; LS.set("active_address", email); state.search=""; state.tab="inbox"; render(); toast(email+" created & active right away — the inbox has switched to this address.");
 }
 function registerAddress(email){
   email=(email||"").toLowerCase();
-  if(identities.some(i=>i.email.toLowerCase()===email)){ toast(email+" sudah terdaftar."); return; }
+  if(identities.some(i=>i.email.toLowerCase()===email)){ toast(email+" is already registered."); return; }
   const local=email.split("@")[0];
   const disp=local.charAt(0).toUpperCase()+local.slice(1);
-  identities.push({id:Date.now(), name:disp, email:email}); saveIdent(); render(); toast(email+" didaftarkan sebagai pengirim.");
+  identities.push({id:Date.now(), name:disp, email:email}); saveIdent(); render(); toast(email+" registered as a sender.");
 }
 function copyAddress(email){
-  const done=()=>toast(email+" disalin.");
+  const done=()=>toast(email+" copied.");
   if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(email).then(done).catch(()=>fallbackCopy(email, done)); }
   else fallbackCopy(email, done);
 }
 function fallbackCopy(text, done){ const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); done(); }catch(e){ toast(text); } ta.remove(); }
 function sentHtml(){
-  if(!sentLocal.length) return '<div class="card empty"><b>Belum ada email terkirim</b>Email yang kamu kirim dari webmail ini tercatat di sini.<br><span class="small">Catatan: daftar ini hanya tersimpan di perangkat ini.</span></div>';
-  return '<div class="card"><ul class="list">'+sentLocal.map(s=>'<li><div style="padding:14px 16px"><div style="display:flex;gap:8px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kepada: '+esc((s.to||[]).join(", "))+'</span><span class="row-date">'+esc(fmtListDate(s.created_at))+'</span></div><div class="row-subj">'+esc(s.subject||"(tanpa subjek)")+'</div><div class="row-snip">'+esc(String(s.body_text||"").replace(/\s+/g," ").slice(0,120)||"—")+'</div></div></li>').join("")+"</ul></div>";
+  if(!sentLocal.length) return '<div class="card empty"><b>No sent mail yet</b>Mail you send from this webmail is recorded here.<br><span class="small">Note: this list is only stored on this device.</span></div>';
+  return '<div class="card"><ul class="list">'+sentLocal.map(s=>'<li><div style="padding:14px 16px"><div style="display:flex;gap:8px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">To: '+esc((s.to||[]).join(", "))+'</span><span class="row-date">'+esc(fmtListDate(s.created_at))+'</span></div><div class="row-subj">'+esc(s.subject||"(no subject)")+'</div><div class="row-snip">'+esc(String(s.body_text||"").replace(/\s+/g," ").slice(0,120)||"—")+'</div></div></li>').join("")+"</ul></div>";
 }
-function authChip(label, value){ if(!value) return ""; const color=value==="pass"?"var(--ok)":value==="fail"?"var(--bad)":"var(--dim)"; const t=value==="pass"?"lulus":value==="fail"?"gagal":value; return '<span class="chip" style="color:'+color+'">'+label+": "+esc(t)+"</span>"; }
+function authChip(label, value){ if(!value) return ""; const color=value==="pass"?"var(--ok)":value==="fail"?"var(--bad)":"var(--dim)"; const t=value==="pass"?"pass":value==="fail"?"fail":value; return '<span class="chip" style="color:'+color+'">'+label+": "+esc(t)+"</span>"; }
 function readHtml(){
   if(!state.openId) return "";
   let inner="";
-  if(state.detailLoading) inner='<p class="empty">Memuat isi email…</p>';
+  if(state.detailLoading) inner='<p class="empty">Loading email…</p>';
   else if(state.detail && state.detail._error) inner='<div class="card card-pad"><span class="err">'+esc(state.detail._error)+'</span></div>';
   else if(state.detail){
     const m=state.detail;
     const atts=m.attachments||[];
-    inner='<article class="card card-pad"><h1>'+esc(m.subject||"(tanpa subjek)")+'</h1>'
-      +'<div style="display:flex;gap:12px;margin-top:14px"><span class="avatar">'+esc(initialsOf(m.from||""))+'</span><div style="min-width:0;font-size:14px"><div style="font-weight:700">'+esc(displaySender(m.from||""))+'</div><div style="color:var(--dim);font-family:monospace;font-size:12px;word-break:break-all">'+esc(parseAddress(m.from||"").email)+'</div><div style="color:var(--dim);font-size:12px;margin-top:4px">Kepada: '+esc((m.to||[]).join(", "))+(m.cc&&m.cc.length?" · Cc: "+esc(m.cc.join(", ")):"")+'</div><div style="color:var(--dim);font-size:12px">'+esc(fmtFullDate(m.created_at))+'</div></div></div>'
-      +(m.authentication?'<div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--dim)">Keamanan pengirim:</span>'+authChip("SPF",m.authentication.spf)+authChip("DKIM",m.authentication.dkim)+authChip("DMARC",m.authentication.dmarc)+"</div>":"")
+    inner='<article class="card card-pad"><h1>'+esc(m.subject||"(no subject)")+'</h1>'
+      +'<div style="display:flex;gap:12px;margin-top:14px"><span class="avatar">'+esc(initialsOf(m.from||""))+'</span><div style="min-width:0;font-size:14px"><div style="font-weight:700">'+esc(displaySender(m.from||""))+'</div><div style="color:var(--dim);font-family:monospace;font-size:12px;word-break:break-all">'+esc(parseAddress(m.from||"").email)+'</div><div style="color:var(--dim);font-size:12px;margin-top:4px">To: '+esc((m.to||[]).join(", "))+(m.cc&&m.cc.length?" · Cc: "+esc(m.cc.join(", ")):"")+'</div><div style="color:var(--dim);font-size:12px">'+esc(fmtFullDate(m.created_at))+'</div></div></div>'
+      +(m.authentication?'<div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--dim)">Sender security:</span>'+authChip("SPF",m.authentication.spf)+authChip("DKIM",m.authentication.dkim)+authChip("DMARC",m.authentication.dmarc)+"</div>":"")
       +'<hr style="border:0;border-top:1px solid var(--border);margin:18px 0">'
-      +(m.html? '<div class="email-body">'+sanitizeHtml(m.html)+"</div>" : '<pre class="plain">'+esc(m.text||"(Email ini tidak punya isi teks.)")+"</pre>")
-      +(atts.length? '<div style="margin-top:20px"><b>Lampiran ('+atts.length+')</b>'+atts.map(a=>'<div class="attach"><span>📎</span><span style="flex:1;min-width:0"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px">'+esc(a.filename||"lampiran")+'</span><span style="font-size:12px;color:var(--dim)">'+esc(a.content_type||"berkas")+" · "+esc(fmtSize(a.size))+'</span></span><button class="btn" style="min-height:40px" onclick="downloadAttachment(\''+esc(state.openId)+'\',\''+esc(a.id)+'\',\''+esc(a.filename||"lampiran")+'\')">Unduh</button></div>').join("")+"</div>":"")
-      +'<div class="actions"><button class="btn btn-primary" onclick="startReply(false)">↩ Balas</button><button class="btn" onclick="startReply(true)">Balas semua</button><button class="btn" onclick="startForward()">➜ Teruskan</button><button class="btn" onclick="markUnread()">Tandai belum dibaca</button></div>'
+      +(m.html? '<div class="email-body">'+sanitizeHtml(m.html)+"</div>" : '<pre class="plain">'+esc(m.text||"(This email has no text content.)")+"</pre>")
+      +(atts.length? '<div style="margin-top:20px"><b>Attachments ('+atts.length+')</b>'+atts.map(a=>'<div class="attach"><span>📎</span><span style="flex:1;min-width:0"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px">'+esc(a.filename||"attachment")+'</span><span style="font-size:12px;color:var(--dim)">'+esc(a.content_type||"file")+" · "+esc(fmtSize(a.size))+'</span></span><button class="btn" style="min-height:40px" onclick="downloadAttachment(\''+esc(state.openId)+'\',\''+esc(a.id)+'\',\''+esc(a.filename||"attachment")+'\')">Download</button></div>').join("")+"</div>":"")
+      +'<div class="actions"><button class="btn btn-primary" onclick="startReply(false)">↩ Reply</button><button class="btn" onclick="startReply(true)">Reply all</button><button class="btn" onclick="startForward()">➜ Forward</button><button class="btn" onclick="markUnread()">Mark as unread</button></div>'
       +"</article>";
   }
-  return '<div class="overlay"><div class="overlay-inner"><div class="overlay-head"><button class="icon-btn" onclick="closeRead()" aria-label="Kembali">←</button><span style="font-weight:700">Baca email</span></div>'+inner+"</div></div>";
+  return '<div class="overlay"><div class="overlay-inner"><div class="overlay-head"><button class="icon-btn" onclick="closeRead()" aria-label="Back">←</button><span style="font-weight:700">Read email</span></div>'+inner+"</div></div>";
 }
 function markUnread(){ if(state.openId){ delete readFlags[state.openId]; saveRead(); } closeRead(); }
 function closeRead(){ state.openId=null; state.detail=null; render(); }
-function quoteBlock(m){ const body=(m.text||"").trim(); const q=body?body.split("\n").map(l=>"> "+l).join("\n"):"> (isi email tidak tersedia dalam teks)"; return "\n\nPada "+fmtFullDate(m.created_at)+", "+displaySender(m.from||"")+" menulis:\n"+q; }
-function startReply(all){ const m=state.detail; if(!m) return; const sender=parseAddress((m.reply_to&&m.reply_to[0])||m.from||""); let cc=[]; if(all){ const mine=new Set(identities.map(i=>i.email.toLowerCase())); const pool=[...(m.to||[]),...(m.cc||[])].map(a=>parseAddress(a).email).filter(e=>e.toLowerCase()!==sender.email.toLowerCase()&&!mine.has(e.toLowerCase())&&!e.toLowerCase().endsWith("@"+cfg.domain.toLowerCase())); cc=Array.from(new Set(pool)); } state.compose={ title:all?"Balas semua":"Balas email", fromEmail:(identities[0]||{}).email||"", to:sender.email, cc:cc.join(", "), bcc:"", subject:/^re:/i.test(m.subject||"")?m.subject:("Re: "+(m.subject||"")), body:quoteBlock(m), inReplyTo:m.message_id||undefined, references:m.message_id||undefined }; render(); }
-function startForward(){ const m=state.detail; if(!m) return; const header=["---------- Pesan diteruskan ----------","Dari: "+(m.from||""),"Tanggal: "+fmtFullDate(m.created_at),"Subjek: "+(m.subject||""),"Kepada: "+(m.to||[]).join(", "),"",(m.text||"").trim()].join("\n"); state.compose={ title:"Teruskan email", fromEmail:(identities[0]||{}).email||"", to:"", cc:"", bcc:"", subject:/^fwd:/i.test(m.subject||"")?m.subject:("Fwd: "+(m.subject||"")), body:"\n\n"+header }; render(); }
+function quoteBlock(m){ const body=(m.text||"").trim(); const q=body?body.split("\n").map(l=>"> "+l).join("\n"):"> (message content not available as text)"; return "\n\nOn "+fmtFullDate(m.created_at)+", "+displaySender(m.from||"")+" wrote:\n"+q; }
+function startReply(all){ const m=state.detail; if(!m) return; const sender=parseAddress((m.reply_to&&m.reply_to[0])||m.from||""); let cc=[]; if(all){ const mine=new Set(identities.map(i=>i.email.toLowerCase())); const pool=[...(m.to||[]),...(m.cc||[])].map(a=>parseAddress(a).email).filter(e=>e.toLowerCase()!==sender.email.toLowerCase()&&!mine.has(e.toLowerCase())&&!e.toLowerCase().endsWith("@"+cfg.domain.toLowerCase())); cc=Array.from(new Set(pool)); } state.compose={ title:all?"Reply all":"Reply to email", fromEmail:(identities[0]||{}).email||"", to:sender.email, cc:cc.join(", "), bcc:"", subject:/^re:/i.test(m.subject||"")?m.subject:("Re: "+(m.subject||"")), body:quoteBlock(m), inReplyTo:m.message_id||undefined, references:m.message_id||undefined }; render(); }
+function startForward(){ const m=state.detail; if(!m) return; const header=["---------- Forwarded message ----------","From: "+(m.from||""),"Date: "+fmtFullDate(m.created_at),"Subject: "+(m.subject||""),"To: "+(m.to||[]).join(", "),"",(m.text||"").trim()].join("\n"); state.compose={ title:"Forward email", fromEmail:(identities[0]||{}).email||"", to:"", cc:"", bcc:"", subject:/^fwd:/i.test(m.subject||"")?m.subject:("Fwd: "+(m.subject||"")), body:"\n\n"+header }; render(); }
 function composeHtml(){
   const c=state.compose; if(!c) return "";
-  if(!identities.length) return '<div class="overlay"><div class="overlay-inner"><div class="overlay-head"><button class="icon-btn" onclick="closeCompose()">✕</button><h2>'+esc(c.title)+'</h2></div><div class="card card-pad"><b>Belum ada nama pengirim.</b><p class="muted">Tambahkan dulu alamat pengirim (misal halo@'+esc(cfg.domain)+') di Pengaturan.</p><br><button class="btn btn-primary" onclick="closeCompose();goTab(\'settings\')">Buka Pengaturan</button></div></div></div>';
+  if(!identities.length) return '<div class="overlay"><div class="overlay-inner"><div class="overlay-head"><button class="icon-btn" onclick="closeCompose()">✕</button><h2>'+esc(c.title)+'</h2></div><div class="card card-pad"><b>No sender name yet.</b><p class="muted">Add a sender address first (for example hello@'+esc(cfg.domain)+') in Settings.</p><br><button class="btn btn-primary" onclick="closeCompose();goTab(\'settings\')">Open Settings</button></div></div></div>';
   const opts=identities.map(i=>'<option value="'+esc(i.email)+'"'+(i.email===c.fromEmail?" selected":"")+">"+esc(i.name)+" &lt;"+esc(i.email)+"&gt;</option>").join("");
-  return '<div class="overlay"><div class="overlay-inner"><div class="overlay-head"><button class="icon-btn" onclick="closeCompose()">✕</button><h2 style="flex:1">'+esc(c.title)+'</h2><button class="btn btn-primary" id="send-btn" onclick="doSend()">Kirim ➤</button></div>'
+  return '<div class="overlay"><div class="overlay-inner"><div class="overlay-head"><button class="icon-btn" onclick="closeCompose()">✕</button><h2 style="flex:1">'+esc(c.title)+'</h2><button class="btn btn-primary" id="send-btn" onclick="doSend()">Send ➤</button></div>'
     +'<div class="card card-pad">'
-    +'<div class="field"><label for="c-from">Kirim sebagai</label><select id="c-from" onchange="updCompose(\'fromEmail\',this.value)">'+opts+'</select></div>'
-    +'<div class="field"><label for="c-to">Kepada</label><input id="c-to" type="text" placeholder="nama@email.com — pisahkan dengan koma kalau lebih dari satu" value="'+esc(c.to)+'" oninput="updCompose(\'to\',this.value)"></div>'
-    +'<div class="field"><label for="c-cc">Cc <span style="font-weight:400;color:var(--dim)">(opsional)</span></label><input id="c-cc" type="text" value="'+esc(c.cc)+'" oninput="updCompose(\'cc\',this.value)"></div>'
-    +'<div class="field"><label for="c-bcc">Bcc <span style="font-weight:400;color:var(--dim)">(opsional)</span></label><input id="c-bcc" type="text" value="'+esc(c.bcc)+'" oninput="updCompose(\'bcc\',this.value)"></div>'
-    +'<div class="field"><label for="c-subj">Subjek</label><input id="c-subj" type="text" value="'+esc(c.subject)+'" oninput="updCompose(\'subject\',this.value)"></div>'
-    +'<div class="field"><label for="c-body">Isi email</label><textarea id="c-body" rows="14" placeholder="Tulis email kamu di sini…" oninput="updCompose(\'body\',this.value)">'+esc(c.body)+'</textarea></div>'
+    +'<div class="field"><label for="c-from">Send as</label><select id="c-from" onchange="updCompose(\'fromEmail\',this.value)">'+opts+'</select></div>'
+    +'<div class="field"><label for="c-to">To</label><input id="c-to" type="text" placeholder="name@email.com — separate with commas if more than one" value="'+esc(c.to)+'" oninput="updCompose(\'to\',this.value)"></div>'
+    +'<div class="field"><label for="c-cc">Cc <span style="font-weight:400;color:var(--dim)">(optional)</span></label><input id="c-cc" type="text" value="'+esc(c.cc)+'" oninput="updCompose(\'cc\',this.value)"></div>'
+    +'<div class="field"><label for="c-bcc">Bcc <span style="font-weight:400;color:var(--dim)">(optional)</span></label><input id="c-bcc" type="text" value="'+esc(c.bcc)+'" oninput="updCompose(\'bcc\',this.value)"></div>'
+    +'<div class="field"><label for="c-subj">Subject</label><input id="c-subj" type="text" value="'+esc(c.subject)+'" oninput="updCompose(\'subject\',this.value)"></div>'
+    +'<div class="field"><label for="c-body">Email body</label><textarea id="c-body" rows="14" placeholder="Write your email here…" oninput="updCompose(\'body\',this.value)">'+esc(c.body)+'</textarea></div>'
     +'<p class="err" id="compose-error"></p></div></div></div>';
 }
 function updCompose(k,v){ if(state.compose) state.compose[k]=v; }
 function closeCompose(){ state.compose=null; render(); }
-async function doSend(){ const btn=document.getElementById("send-btn"); const errEl=document.getElementById("compose-error"); if(btn){btn.disabled=true; btn.textContent="Mengirim…";} if(errEl) errEl.textContent=""; try{ await sendCurrentCompose(); }catch(e){ if(errEl) errEl.textContent=e.message||"Gagal mengirim email."; if(btn){btn.disabled=false; btn.textContent="Kirim ➤";} } }
-function newCompose(){ state.compose={ title:"Email baru", fromEmail:(identities.find(i=>i.email.toLowerCase()===(state.activeAddress||"").toLowerCase())||identities[0]||{}).email||"", to:"", cc:"", bcc:"", subject:"", body:"" }; render(); }
+async function doSend(){ const btn=document.getElementById("send-btn"); const errEl=document.getElementById("compose-error"); if(btn){btn.disabled=true; btn.textContent="Sending…";} if(errEl) errEl.textContent=""; try{ await sendCurrentCompose(); }catch(e){ if(errEl) errEl.textContent=e.message||"Failed to send email."; if(btn){btn.disabled=false; btn.textContent="Send ➤";} } }
+function newCompose(){ state.compose={ title:"New email", fromEmail:(identities.find(i=>i.email.toLowerCase()===(state.activeAddress||"").toLowerCase())||identities[0]||{}).email||"", to:"", cc:"", bcc:"", subject:"", body:"" }; render(); }
 
-/* ===== Pengaturan v2: 3 kartu terpisah, bukan satu form panjang ===== */
+/* ===== Settings v2: 3 kartu terpisah, bukan satu form panjang ===== */
 function settingsHtml(){
-  return '<div class="card card-pad section-card"><h2>Koneksi</h2><p class="muted">Webmail ini terhubung lewat Worker Cloudflare milikmu. API key Resend tersimpan di Worker, bukan di file ini.</p>'
-    +'<div class="field" style="margin-top:14px"><label for="s-url">Alamat Worker kamu</label><input id="s-url" type="url" placeholder="https://nama-worker.kamu.workers.dev" value="'+esc(cfg.proxyUrl)+'"><p class="hint">Diakhiri <b>.workers.dev</b> — muncul setelah kamu deploy worker.js di Cloudflare.</p></div>'
-    +'<div class="field"><label for="s-pass">Kata sandi Worker</label><div class="input-row"><input id="s-pass" type="'+(state.showPass?"text":"password")+'" placeholder="Sama persis dengan yang kamu set di Worker" value="'+esc(cfg.proxyPassword)+'"><button class="icon-btn" type="button" onclick="togglePass()">'+(state.showPass?"🙈":"👁")+'</button></div><p class="hint">Jangan bagikan alamat + kata sandi ini ke orang lain — siapa pun yang tahu keduanya bisa membaca &amp; mengirim email atas nama kamu.</p></div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" onclick="saveSettings()">Simpan</button><button class="btn" id="test-btn" onclick="doTest()">Tes koneksi</button></div>'
+  return '<div class="card card-pad section-card"><h2>Connection</h2><p class="muted">This webmail connects through your own Cloudflare Worker. Your Resend API key lives in the Worker, not in this file.</p>'
+    +'<div class="field" style="margin-top:14px"><label for="s-url">Your Worker URL</label><input id="s-url" type="url" placeholder="https://your-worker-name.workers.dev" value="'+esc(cfg.proxyUrl)+'"><p class="hint">It ends with <b>.workers.dev</b> — it appears after you deploy worker.js on Cloudflare.</p></div>'
+    +'<div class="field"><label for="s-pass">Worker password</label><div class="input-row"><input id="s-pass" type="'+(state.showPass?"text":"password")+'" placeholder="Exactly as you set it in the Worker" value="'+esc(cfg.proxyPassword)+'"><button class="icon-btn" type="button" onclick="togglePass()">'+(state.showPass?"🙈":"👁")+'</button></div><p class="hint">Do not share this URL + password with anyone — anyone who knows both can read &amp; send mail as you.</p></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary" onclick="saveSettings()">Save</button><button class="btn" id="test-btn" onclick="doTest()">Test connection</button></div>'
     +'<p id="settings-msg" style="margin-top:10px"></p>'
-    +'<p class="hint">Status: '+(configured()?'<span style="color:var(--ok);font-weight:700">Sudah diisi — tekan Tes koneksi untuk verifikasi</span>':'<span style="color:var(--warn);font-weight:700">Belum diisi</span>')+'</p></div>'
-    +'<div class="card card-pad section-card"><h2>Nama pengirim</h2><p class="muted">Alamat apa pun @'+esc(cfg.domain)+' otomatis bisa menerima email. Daftar ini hanya nama + alamat yang tampil saat kamu mengirim.</p>'
-    +(identities.length? '<div class="card" style="margin-top:12px"><ul class="list">'+identities.map(i=>'<li><div style="display:flex;gap:12px;align-items:center;padding:12px 16px"><span class="avatar">'+esc(initialsOf(i.email))+'</span><span style="flex:1;min-width:0"><span style="display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</span><span style="font-family:monospace;font-size:12px;color:var(--dim)">'+esc(i.email)+'</span></span><button class="btn" style="min-height:40px;color:var(--bad)" onclick="removeIdentity(\''+esc(i.email)+'\')">Hapus</button></div></li>').join("")+"</ul></div>":"<p class=\"muted\" style=\"margin-top:12px\">Belum ada nama pengirim.</p>")
-    +'<div class="field" style="margin-top:14px"><label for="i-name">Nama yang tampil</label><input id="i-name" type="text" placeholder="mis. Terablox"></div>'
-    +'<div class="field"><label for="i-email">Alamat email</label><input id="i-email" type="text" placeholder="halo@'+esc(cfg.domain)+'"></div>'
-    +'<p class="err" id="identity-error"></p><button class="btn" onclick="addIdentity()">Tambah nama pengirim</button></div>'
-    +'<div class="card card-pad section-card"><h2>Tentang &amp; kuota</h2>'
+    +'<p class="hint">Status: '+(configured()?'<span style="color:var(--ok);font-weight:700">Already filled in — press Test connection to verify</span>':'<span style="color:var(--warn);font-weight:700">Not filled in yet</span>')+'</p></div>'
+    +'<div class="card card-pad section-card"><h2>Sender name</h2><p class="muted">Any @'+esc(cfg.domain)+' address can receive mail automatically. This list is only the names + addresses shown when you send.</p>'
+    +(identities.length? '<div class="card" style="margin-top:12px"><ul class="list">'+identities.map(i=>'<li><div style="display:flex;gap:12px;align-items:center;padding:12px 16px"><span class="avatar">'+esc(initialsOf(i.email))+'</span><span style="flex:1;min-width:0"><span style="display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</span><span style="font-family:monospace;font-size:12px;color:var(--dim)">'+esc(i.email)+'</span></span><button class="btn" style="min-height:40px;color:var(--bad)" onclick="removeIdentity(\''+esc(i.email)+'\')">Delete</button></div></li>').join("")+"</ul></div>":"<p class=\"muted\" style=\"margin-top:12px\">No sender name yet.</p>")
+    +'<div class="field" style="margin-top:14px"><label for="i-name">Display name</label><input id="i-name" type="text" placeholder="e.g. Terablox"></div>'
+    +'<div class="field"><label for="i-email">Email address</label><input id="i-email" type="text" placeholder="hello@'+esc(cfg.domain)+'"></div>'
+    +'<p class="err" id="identity-error"></p><button class="btn" onclick="addIdentity()">Add sender name</button></div>'
+    +'<div class="card card-pad section-card"><h2>About &amp; quota</h2>'
     +'<div class="kv"><b>Domain</b><span>@'+esc(cfg.domain)+'</span></div>'
-    +'<div class="kv"><b>Kuota Resend</b><span>3.000 email/bulan, maks 100/hari (paket gratis)</span></div>'
-    +'<div class="kv"><b>Penyegaran</b><span>Otomatis tiap 2 menit selama file ini terbuka. Tidak ada sync latar belakang kalau file ditutup.</span></div>'
-    +'<div class="kv"><b>Data tersimpan</b><span>Hanya di browser ini (localStorage). Ganti browser = isi ulang koneksi &amp; nama pengirim.</span></div>'
-    +'<div style="margin-top:14px"><button class="btn" style="color:var(--bad)" onclick="disconnect()">Putuskan koneksi</button></div></div>'
-    +'<div class="card card-pad section-card"><h2>Mode publik &amp; keamanan</h2><p class="muted">File ini aman di-host untuk umum: tidak ada API key, kata sandi, atau alamat Worker asli yang tertulis di dalamnya. Tamu hanya bisa memakai alamat sementara <b>tmp-xxxxxxxxxx@'+esc(cfg.domain)+'</b> (hanya baca, lewat rute publik Worker) dan tidak pernah melihat inbox, alamat, atau pengaturan pemilik.</p><p class="muted" style="margin-top:8px">Kalau file ini dibuka di perangkat bersama / umum, kunci atau hapus datamu setelah selesai:</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" onclick="lockOwner()">🔒 Kunci (ke halaman tamu)</button><button class="btn" style="color:var(--bad)" onclick="wipeAllData()">🗑 Hapus semua data di perangkat ini</button></div><p class="hint" style="margin-top:10px">Matikan mode tamu kapan pun dari Worker: set <b>PUBLIC_ENABLED=false</b> lalu Deploy — mode Pemilik tetap jalan.</p></div>';
+    +'<div class="kv"><b>Resend quota</b><span>3,000 emails/month, max 100/day (free plan)</span></div>'
+    +'<div class="kv"><b>Refreshing</b><span>Automatic every 2 minutes while this file is open. No background sync when the file is closed.</span></div>'
+    +'<div class="kv"><b>Stored data</b><span>Only in this browser (localStorage). Switching browsers means setting up the connection &amp; sender names again.</span></div>'
+    +'<div style="margin-top:14px"><button class="btn" style="color:var(--bad)" onclick="disconnect()">Disconnect</button></div></div>'
+    +'<div class="card card-pad section-card"><h2>Public mode &amp; security</h2><p class="muted">This file is safe to host publicly: no API key, password, or real Worker URL is written in it. Guests can only use a temporary address <b>tmp-xxxxxxxxxx@'+esc(cfg.domain)+'</b> (read-only, via the Worker public routes) and never see the owner inbox, addresses, or settings.</p><p class="muted" style="margin-top:8px">If this file is opened on a shared / public device, lock it or delete your data when done:</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" onclick="lockOwner()">🔒 Lock (back to the guest page)</button><button class="btn" style="color:var(--bad)" onclick="wipeAllData()">🗑 Delete all data on this device</button></div><p class="hint" style="margin-top:10px">Turn guest mode off any time from the Worker: set <b>PUBLIC_ENABLED=false</b> then Deploy — owner mode keeps working.</p></div>';
 }
-function saveSettings(){ cfg.proxyUrl=document.getElementById("s-url").value.trim(); cfg.proxyPassword=document.getElementById("s-pass").value; saveCfg(); const m=document.getElementById("settings-msg"); if(m) m.innerHTML='<span class="oktxt">Tersimpan di browser ini.</span>'; if(configured()) loadInbox(); }
-async function doTest(){ saveSettingsSilent(); const btn=document.getElementById("test-btn"); const m=document.getElementById("settings-msg"); if(btn){btn.disabled=true; btn.textContent="Menguji…";} if(m) m.textContent=""; try{ await testConnection(); if(m) m.innerHTML='<span class="oktxt">Koneksi berhasil — Worker hidup dan API key Resend valid.</span>'; loadInbox(); }catch(e){ if(m) m.innerHTML='<span class="err">'+esc(e.message||"Koneksi gagal.")+"</span>"; } if(btn){btn.disabled=false; btn.textContent="Tes koneksi";} }
+function saveSettings(){ cfg.proxyUrl=document.getElementById("s-url").value.trim(); cfg.proxyPassword=document.getElementById("s-pass").value; saveCfg(); const m=document.getElementById("settings-msg"); if(m) m.innerHTML='<span class="oktxt">Saved in this browser.</span>'; if(configured()) loadInbox(); }
+async function doTest(){ saveSettingsSilent(); const btn=document.getElementById("test-btn"); const m=document.getElementById("settings-msg"); if(btn){btn.disabled=true; btn.textContent="Testing…";} if(m) m.textContent=""; try{ await testConnection(); if(m) m.innerHTML='<span class="oktxt">Connection successful — the Worker is live and the Resend API key is valid.</span>'; loadInbox(); }catch(e){ if(m) m.innerHTML='<span class="err">'+esc(e.message||"Connection failed.")+"</span>"; } if(btn){btn.disabled=false; btn.textContent="Test connection";} }
 function saveSettingsSilent(){ const u=document.getElementById("s-url"), p=document.getElementById("s-pass"); if(u) cfg.proxyUrl=u.value.trim(); if(p) cfg.proxyPassword=p.value; saveCfg(); }
-function addIdentity(){ const name=document.getElementById("i-name").value.trim(); const email=document.getElementById("i-email").value.trim().toLowerCase(); const err=document.getElementById("identity-error"); err.textContent=""; if(!name||!email){ err.textContent="Nama dan alamat email wajib diisi."; return; } if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ err.textContent="Format alamat email tidak valid."; return; } if(!email.endsWith("@"+cfg.domain.toLowerCase())){ err.textContent="Alamat harus memakai domain @"+cfg.domain+"."; return; } if(identities.some(i=>i.email===email)){ err.textContent="Nama pengirim ini sudah ada."; return; } identities.push({id:Date.now(), name:name, email:email}); saveIdent(); render(); toast("Nama pengirim ditambahkan."); }
+function addIdentity(){ const name=document.getElementById("i-name").value.trim(); const email=document.getElementById("i-email").value.trim().toLowerCase(); const err=document.getElementById("identity-error"); err.textContent=""; if(!name||!email){ err.textContent="Name and email address are required."; return; } if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ err.textContent="The email address format is invalid."; return; } if(!email.endsWith("@"+cfg.domain.toLowerCase())){ err.textContent="The address must use the @"+cfg.domain+" domain."; return; } if(identities.some(i=>i.email===email)){ err.textContent="This sender name already exists."; return; } identities.push({id:Date.now(), name:name, email:email}); saveIdent(); render(); toast("Sender name added."); }
 function removeIdentity(email){ identities=identities.filter(i=>i.email!==email); saveIdent(); render(); }
-function disconnect(){ if(!confirm("Putuskan koneksi? Alamat Worker dan kata sandi akan dihapus dari browser ini.")) return; cfg.proxyUrl=""; cfg.proxyPassword=""; saveCfg(); state.messages=[]; state.setupStep=1; render(); }
+function disconnect(){ if(!confirm("Disconnect? The Worker URL and password will be removed from this browser.")) return; cfg.proxyUrl=""; cfg.proxyPassword=""; saveCfg(); state.messages=[]; state.setupStep=1; render(); }
 function goTab(t){ if(t==="addresses") t="inbox"; state.tab=t; render(); if(t==="inbox" && configured() && !state.messages.length) loadInbox(); }
 function onSearch(v){ state.search=v; if(state.tab!=="inbox"){ state.tab="inbox"; render(); const el=document.getElementById("search-input"); if(el){el.value=v; el.focus();} } else render(); }
 function render(){
   if(state.mode==="guest"){
     if(!guestBase()){
       app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">\u2709\uFE0F</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+'</div></header>'
-        +'<div class="shell"><main class="main"><div class="card card-pad" style="text-align:center"><div style="font-size:40px">\u2709\uFE0F</div><h1 style="margin:8px 0 6px">Mode tamu belum aktif</h1><p class="muted" style="margin:0">Salinan web ini belum dihubungkan ke Worker publik. Pemilik perlu mengisi alamat Worker-nya dulu.</p></div></main></div>';
+        +'<div class="shell"><main class="main"><div class="card card-pad" style="text-align:center"><div style="font-size:40px">\u2709\uFE0F</div><h1 style="margin:8px 0 6px">Guest mode is not active yet</h1><p class="muted" style="margin:0">This copy has not been connected to the public Worker yet. The owner needs to enter the Worker URL first.</p></div></main></div>';
       renderToast(); return;
     }
-    app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">✉️</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">Alamat sementara</span></span></div>'+statusPill()+'</div></header>'
-      +'<div class="shell"><main class="main"><div class="page-head"><h1>Kotak Masuk Tamu</h1><span class="spacer"></span><span class="small">'+esc(state.guestAddress||"")+'</span></div>'+guestHtml()+'</main></div>'
+    app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">✉️</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">Temporary address</span></span></div>'+statusPill()+'</div></header>'
+      +'<div class="shell"><main class="main"><div class="page-head"><h1>Guest Inbox</h1><span class="spacer"></span><span class="small">'+esc(state.guestAddress||"")+'</span></div>'+guestHtml()+'</main></div>'
       + guestReadHtml();
     renderToast(); return;
   }
@@ -692,28 +692,28 @@ function render(){
   if(needsSetup){
     main = stepsHtml() + wizardHtml();
   } else if(state.tab==="inbox"){
-    main = addrChipsHtml() + addrManageHtml() + '<div class="toolbar"><div class="search"><span>🔍</span><input id="search-input" type="search" placeholder="Cari pengirim atau subjek…" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div><button class="btn" onclick="loadInbox()" '+(state.loading?"disabled":"")+'><span class="'+(state.loading?"spin":"")+'">↻</span> Perbarui</button></div>'
-      +'<p class="small" style="margin:0 2px 12px">'+(state.lastSync?("Terakhir dicek: "+esc(new Date(state.lastSync).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}))+" · dicek otomatis tiap 2 menit selama halaman terbuka"):"Tekan Perbarui untuk memeriksa email masuk.")+'</p>'
+    main = addrChipsHtml() + addrManageHtml() + '<div class="toolbar"><div class="search"><span>🔍</span><input id="search-input" type="search" placeholder="Search sender or subject…" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div><button class="btn" onclick="loadInbox()" '+(state.loading?"disabled":"")+'><span class="'+(state.loading?"spin":"")+'">↻</span> Refresh</button></div>'
+      +'<p class="small" style="margin:0 2px 12px">'+(state.lastSync?("Last checked: "+esc(new Date(state.lastSync).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}))+" · checked automatically every 2 minutes while this page is open"):"Press Refresh to check for incoming mail.")+'</p>'
       + listHtml();
   }
   else if(state.tab==="sent") main=sentHtml();
   else main=settingsHtml();
 
-  const pageTitle = needsSetup ? "Siapkan dulu, sebentar saja" : state.tab==="inbox" ? "Kotak Masuk" : state.tab==="sent" ? "Terkirim" : "Pengaturan";
-  const pageSub = needsSetup ? "3 langkah, tanpa istilah teknis." : state.tab==="sent" ? "Hanya tersimpan di perangkat ini." : state.tab==="settings" ? "Koneksi, nama pengirim, dan info kuota." : (state.activeAddress ? esc(state.activeAddress) : "@"+esc(cfg.domain));
+  const pageTitle = needsSetup ? "Set up first — it only takes a moment" : state.tab==="inbox" ? "Inbox" : state.tab==="sent" ? "Sent" : "Settings";
+  const pageSub = needsSetup ? "3 steps, no technical jargon." : state.tab==="sent" ? "Only stored on this device." : state.tab==="settings" ? "Connection, sender names, and quota info." : (state.activeAddress ? esc(state.activeAddress) : "@"+esc(cfg.domain));
 
   app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">✉️</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+'</div></header>'
     +'<div class="shell">'
-    +(needsSetup?"":'<aside class="sidebar"><button class="side-btn" onclick="newCompose()">✎ &nbsp;Tulis email baru</button><div style="height:8px"></div><button class="side-btn '+(state.tab==="inbox"?"active":"")+'" onclick="goTab(\'inbox\')">📥 &nbsp;Kotak Masuk'+(unread?'<span class="count">'+unread+'</span>':"")+'</button><button class="side-btn '+(state.tab==="sent"?"active":"")+'" onclick="goTab(\'sent\')">➤ &nbsp;Terkirim</button><button class="side-btn '+(state.tab==="settings"?"active":"")+'" onclick="goTab(\'settings\')">⚙ &nbsp;Pengaturan</button><p class="side-note">Email ke alamat apa pun @'+esc(cfg.domain)+' otomatis masuk. Tidak perlu buat alamat satu-satu.</p></aside>')
-    +'<main class="main"><div class="page-head"><h1>'+esc(pageTitle)+'</h1>'+(state.tab==="inbox"&&unreadShown&&!needsSetup?'<span class="chip chip-accent">'+unreadShown+" belum dibaca</span>":"")+'<span class="spacer"></span><span class="small">'+esc(pageSub)+'</span></div>'
+    +(needsSetup?"":'<aside class="sidebar"><button class="side-btn" onclick="newCompose()">✎ &nbsp;Compose new email</button><div style="height:8px"></div><button class="side-btn '+(state.tab==="inbox"?"active":"")+'" onclick="goTab(\'inbox\')">📥 &nbsp;Inbox'+(unread?'<span class="count">'+unread+'</span>':"")+'</button><button class="side-btn '+(state.tab==="sent"?"active":"")+'" onclick="goTab(\'sent\')">➤ &nbsp;Sent</button><button class="side-btn '+(state.tab==="settings"?"active":"")+'" onclick="goTab(\'settings\')">⚙ &nbsp;Settings</button><p class="side-note">Mail to any @'+esc(cfg.domain)+' address arrives automatically. No need to create addresses one by one.</p></aside>')
+    +'<main class="main"><div class="page-head"><h1>'+esc(pageTitle)+'</h1>'+(state.tab==="inbox"&&unreadShown&&!needsSetup?'<span class="chip chip-accent">'+unreadShown+" unread</span>":"")+'<span class="spacer"></span><span class="small">'+esc(pageSub)+'</span></div>'
     + main + "</main></div>"
-    +(needsSetup?"":'<button class="fab" onclick="newCompose()">✎ Tulis</button>')
-    +(needsSetup?"":'<nav class="bottomnav"><button class="'+(state.tab==="inbox"?"active":"")+'" onclick="goTab(\'inbox\')">📥<br>Kotak Masuk'+(unread?" ("+unread+")":"")+'</button><button class="'+(state.tab==="sent"?"active":"")+'" onclick="goTab(\'sent\')">➤<br>Terkirim</button><button class="'+(state.tab==="settings"?"active":"")+'" onclick="goTab(\'settings\')">⚙<br>Pengaturan</button></nav>')
+    +(needsSetup?"":'<button class="fab" onclick="newCompose()">✎ Compose</button>')
+    +(needsSetup?"":'<nav class="bottomnav"><button class="'+(state.tab==="inbox"?"active":"")+'" onclick="goTab(\'inbox\')">📥<br>Inbox'+(unread?" ("+unread+")":"")+'</button><button class="'+(state.tab==="sent"?"active":"")+'" onclick="goTab(\'sent\')">➤<br>Sent</button><button class="'+(state.tab==="settings"?"active":"")+'" onclick="goTab(\'settings\')">⚙<br>Settings</button></nav>')
     + readHtml() + composeHtml();
   renderToast();
 }
 /* Init */
-/* Migrasi: alamat tamu lama (sebelum ada batas 2) dihitung sebagai alamat ke-1. */
+/* Migrasi: alamat tamu lama (sebelum ada batas 3) dihitung sebagai alamat ke-1. */
 if(!Array.isArray(state.guestCreated)) state.guestCreated=[];
 state.guestCreated=state.guestCreated.filter(e=>typeof e==="string" && /^tmp-[a-z0-9]{10}@/.test(e)).slice(0,3);
 if(!state.guestCreated.length && state.guestAddress){ state.guestCreated=[state.guestAddress]; saveGuestCreated(); }
