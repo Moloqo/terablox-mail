@@ -8,7 +8,7 @@ One `index.html` file — open it straight in the browser, no build, no install.
 ## What's new in v7 (2026-11-12)
 
 - **Send with attachments** (owner): attach files when composing (max 10 MB
-  total, sent as base64 to Resend); sent mail shows a 📎 mark.
+  total, sent as base64 to Resend); sent mail shows a paperclip mark.
 - **New-mail alerts** (owner + guest): a toast + unread count in the tab
   title when new mail arrives during auto-refresh; optional browser
   notifications (toggle in Settings → About & quota).
@@ -18,7 +18,7 @@ One `index.html` file — open it straight in the browser, no build, no install.
 - **Image attachment previews** (owner + guest): image attachments show a
   thumbnail in the read view; click Download for the full file.
 - **Unread filter + dark mode**: an Unread toggle above the Inbox, and a
-  🌙/☀️ button in the header to switch dark/light (saved per browser).
+  theme button in the header to switch dark/light (saved per browser).
 - No Worker change — Worker v6 still applies.
 
 ## What's new in v8 (2026-11-12) — professional redesign
@@ -34,6 +34,24 @@ One `index.html` file — open it straight in the browser, no build, no install.
 - On phones the inbox search is now full-width (Refresh & Unread move to
   the row below).
 - No Worker change — Worker v6 still applies.
+
+## What's new in v9 (2026-11-12) — typography + consistent icons
+
+- **Inter font**: the UI now uses Inter (loaded from Google Fonts, weights
+  400–800) with a system-font fallback, plus tabular numbers for dates and
+  counts, and a refined monospace stack for email addresses. The file still
+  works offline with the fallback fonts; Inter appears when online.
+- **All icons are now SVG**: every emoji/glyph icon is replaced by a
+  consistent set of 24 hand-drawn stroke icons (inbox, send, sliders,
+  compose, search, refresh, moon/sun, eye, clipboard, paperclip, chevrons,
+  reply/forward, lock, trash, check-circle, repeat, list). Sidebar, bottom
+  nav, FAB, search, Refresh, theme, password eye, copy, attachment chips,
+  Reply/Forward/Send, Lock/Delete, and the setup-done check all use them.
+  No emoji icons remain anywhere in the UI.
+- Small fix along the way: the "+ Baru" chip is now "+ New" (leftover
+  Indonesian in the English UI).
+- No behavior change — all v7/v8 features work exactly as before.
+  No Worker change — Worker v6 still applies.
 
 ## Two pages (no longer a single mode-picker screen)
 
