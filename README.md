@@ -21,6 +21,20 @@ One `index.html` file — open it straight in the browser, no build, no install.
   🌙/☀️ button in the header to switch dark/light (saved per browser).
 - No Worker change — Worker v6 still applies.
 
+## What's new in v8 (2026-11-12) — professional redesign
+
+- Neutral professional palette: light slate background, slate-900 text,
+  blue accent (#2563eb). The brand mark is now a "T" lettermark in a blue
+  square (no more emoji envelope).
+- Simpler and calmer: smaller radii, subtler shadows, roomier spacing,
+  slimmer buttons and inputs. All v7 features work exactly as before.
+- Dark mode updated to match (dark slate + light blue accent). Contrast
+  fix: all button text now inherits the theme color, so no more black text
+  on dark surfaces.
+- On phones the inbox search is now full-width (Refresh & Unread move to
+  the row below).
+- No Worker change — Worker v6 still applies.
+
 ## Two pages (no longer a single mode-picker screen)
 
 - **Main page `/` — Guest (public):** visitors instantly get a random

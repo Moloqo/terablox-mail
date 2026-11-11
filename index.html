@@ -5,143 +5,146 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Terablox Mail — @terablox.store</title>
 <style>
-/* Terablox Mail v7 — English UI + attachments, new-mail alerts, reply-from, image previews, unread filter, dark mode.
-   Satu file, tanpa server, tanpa font eksternal. Semua panggilan Resend lewat Worker kamu.
-   API key Resend TIDAK pernah ada di file ini. Yang disimpan di localStorage browser ini:
-   URL Worker + kata sandi, nama pengirim, daftar terkirim lokal, tanda sudah dibaca. */
+
+/* Terablox Mail v8 — professional redesign: neutral slate + blue accent, calmer spacing, flatter cards.
+   Single file, no server, no external fonts. All Resend calls go through your Worker.
+   The Resend API key NEVER lives in this file. What is stored in this browser's localStorage:
+   Worker URL + password, sender names, locally sent mail, read marks. */
 :root{
-  --bg:#f7f4ee; --surface:#ffffff; --surface-2:#faf8f3; --text:#1c1917; --dim:#78716c;
-  --border:#e8e0d3; --accent:#b45309; --accent-strong:#92400e; --accent-soft:#fef3c7;
-  --ok:#15803d; --ok-soft:#dcfce7; --bad:#dc2626; --bad-soft:#fee2e2; --warn:#b45309;
-  --radius:18px; --shadow:0 1px 2px rgba(28,25,23,.05),0 10px 30px -18px rgba(28,25,23,.25);
+  --bg:#f8fafc; --surface:#ffffff; --surface-2:#f1f5f9; --text:#0f172a; --dim:#64748b;
+  --border:#e2e8f0; --accent:#2563eb; --accent-strong:#1d4ed8; --accent-soft:#eff6ff;
+  --ok:#16a34a; --ok-soft:#dcfce7; --bad:#dc2626; --bad-soft:#fee2e2; --warn:#d97706;
+  --radius:14px; --shadow:0 1px 2px rgba(15,23,42,.05);
 }
 [data-theme="dark"]{
-  --bg:#1c1917; --surface:#292524; --surface-2:#44403c; --text:#f5f5f4; --dim:#a8a29e;
-  --border:#44403c; --accent:#f59e0b; --accent-strong:#fbbf24; --accent-soft:#451a03;
+  --bg:#0f172a; --surface:#1e293b; --surface-2:#334155; --text:#f1f5f9; --dim:#94a3b8;
+  --border:#334155; --accent:#60a5fa; --accent-strong:#93c5fd; --accent-soft:#1e3a5f;
   --ok:#4ade80; --ok-soft:#14532d; --bad:#f87171; --bad-soft:#450a0a; --warn:#fbbf24;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -18px rgba(0,0,0,.5);
+  --shadow:0 1px 2px rgba(0,0,0,.3);
 }
-[data-theme="dark"] .header{background:rgba(28,25,23,.92)}
-[data-theme="dark"] .side-btn:hover{background:#44403c}
-[data-theme="dark"] .progress{background:#44403c}
-[data-theme="dark"] details.help code{background:#44403c}
-.theme-btn{width:40px;height:40px;flex:0 0 40px;border-radius:12px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:18px}
-.att-img{max-width:100%;height:auto;border-radius:12px;margin-top:8px;display:block}
+[data-theme="dark"] .header{background:rgba(15,23,42,.92)}
+[data-theme="dark"] .side-btn:hover{background:#334155}
+[data-theme="dark"] .progress{background:#334155}
+[data-theme="dark"] details.help code{background:#334155}
+[data-theme="dark"] .toast{background:#f1f5f9;color:#0f172a}
+.theme-btn{width:40px;height:40px;flex:0 0 40px;border-radius:10px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:18px}
+.att-img{max-width:100%;height:auto;border-radius:10px;margin-top:8px;display:block}
 .att-prev{margin-top:8px}
 .btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong)}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.55}
-button{font:inherit;cursor:pointer} input,select,textarea{font:inherit;color:inherit}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5}
+button{font:inherit;color:inherit;cursor:pointer} input,select,textarea{font:inherit;color:inherit}
 a{color:var(--accent)}
 
-/* ---------- Header: merek + status koneksi (selalu terlihat) ---------- */
-.header{position:sticky;top:0;z-index:20;background:rgba(247,244,238,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
-.header-in{max-width:1080px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
-.brand{display:flex;align-items:center;gap:11px;min-width:0}
-.brand-mark{width:42px;height:42px;flex:0 0 42px;border-radius:13px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:21px}
-.brand-name{font-weight:800;font-size:17px;line-height:1.2;white-space:nowrap}
+/* ---------- Header: brand + connection status (always visible) ---------- */
+.header{position:sticky;top:0;z-index:20;background:rgba(248,250,252,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.header-in{max-width:1080px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-mark{width:36px;height:36px;flex:0 0 36px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800}
+.brand-name{font-weight:700;font-size:16px;line-height:1.2;white-space:nowrap;letter-spacing:-.01em}
 .brand-sub{font-size:12.5px;color:var(--dim);white-space:nowrap}
-.status{margin-left:auto;display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:700;white-space:nowrap}
-.status .dot{width:9px;height:9px;border-radius:50%;background:#a8a29e}
+.status{margin-left:auto;display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.status .dot{width:8px;height:8px;border-radius:50%;background:#94a3b8}
 .status.on{color:var(--ok)} .status.on .dot{background:var(--ok)}
-.status.off{color:var(--warn)} .status.off .dot{background:#d97706}
+.status.off{color:var(--warn)} .status.off .dot{background:var(--warn)}
 
-/* ---------- Layout: sidebar di desktop, konten di tengah ---------- */
-.shell{max-width:1080px;margin:0 auto;padding:18px 16px 120px;display:flex;gap:20px;align-items:flex-start}
-.sidebar{flex:0 0 210px;position:sticky;top:86px;display:none}
+/* ---------- Layout: sidebar on desktop, centered content ---------- */
+.shell{max-width:1080px;margin:0 auto;padding:20px 16px 120px;display:flex;gap:24px;align-items:flex-start}
+.sidebar{flex:0 0 210px;position:sticky;top:82px;display:none}
 @media(min-width:900px){ .sidebar{display:block} .main{flex:1;min-width:0} }
 .main{flex:1;min-width:0;max-width:760px;margin:0 auto;width:100%}
 @media(min-width:900px){ .main{margin:0} }
-.side-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:none;padding:11px 14px;border-radius:12px;font-size:15px;color:var(--text)}
-.side-btn:hover{background:#efe9dd}
-.side-btn.active{background:var(--accent-soft);font-weight:700;color:var(--accent-strong)}
-.side-btn .count{margin-left:auto;background:var(--accent);color:#fff;font-size:11.5px;font-weight:700;border-radius:999px;padding:1px 8px}
+.side-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:none;padding:10px 12px;border-radius:10px;font-size:14.5px;color:var(--text)}
+.side-btn:hover{background:var(--surface-2)}
+.side-btn.active{background:var(--accent-soft);font-weight:600;color:var(--accent-strong)}
+.side-btn .count{margin-left:auto;background:var(--accent);color:#fff;font-size:11px;font-weight:700;border-radius:999px;padding:1px 7px}
 .side-note{font-size:12.5px;color:var(--dim);line-height:1.6;padding:12px 14px}
 
-/* ---------- Kartu, tombol, form ---------- */
+/* ---------- Cards, buttons, forms ---------- */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
 .card-pad{padding:20px}
-h1{font-size:21px;margin:0} h2{font-size:17px;margin:0 0 4px} h3{font-size:15px;margin:0}
-.muted{color:var(--dim);font-size:14px;line-height:1.65}
+h1{font-size:20px;margin:0;letter-spacing:-.01em} h2{font-size:17px;margin:0 0 4px;letter-spacing:-.01em} h3{font-size:15px;margin:0}
+.muted{color:var(--dim);font-size:14px;line-height:1.6}
 .small{font-size:13px;color:var(--dim);line-height:1.6}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:700;font-size:14.5px;text-decoration:none}
-.btn:hover{border-color:#d6cbb6}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:600;font-size:14px;text-decoration:none}
+.btn:hover{border-color:#cbd5e1}
 .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .btn-primary:hover{background:var(--accent-strong)}
 .btn:disabled{opacity:.55;cursor:default}
 .btn-block{width:100%}
 .field{margin-bottom:16px}
-.field label{display:block;font-size:14px;font-weight:700;margin-bottom:6px}
-.field input,.field select{width:100%;min-height:50px;border:1px solid var(--border);border-radius:12px;padding:0 14px;background:var(--surface);outline:0}
+.field label{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+.field input,.field select{width:100%;min-height:48px;border:1px solid var(--border);border-radius:10px;padding:0 12px;background:var(--surface);outline:0}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:var(--surface);outline:0;resize:vertical;line-height:1.65}
+.field textarea{width:100%;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--surface);outline:0;resize:vertical;line-height:1.6}
 .hint{font-size:13px;color:var(--dim);line-height:1.6;margin-top:6px}
 .err{color:var(--bad);font-size:14px;line-height:1.5}
 .oktxt{color:var(--ok);font-size:14px;line-height:1.5;font-weight:600}
 .input-row{display:flex;gap:8px}
 .input-row input{flex:1;min-width:0}
-.icon-btn{width:48px;height:48px;flex:0 0 48px;border-radius:12px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:18px}
-details.help{border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:var(--surface-2);margin-top:14px}
-details.help summary{cursor:pointer;font-weight:700;font-size:14px}
+.icon-btn{width:44px;height:44px;flex:0 0 44px;border-radius:10px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:18px}
+details.help{border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--surface-2);margin-top:14px}
+details.help summary{cursor:pointer;font-weight:600;font-size:14px}
 details.help ol{margin:10px 0 0;padding-left:20px;font-size:14px;line-height:1.7;color:var(--text)}
-details.help code{background:#efe9dd;border-radius:6px;padding:1px 6px;font-size:13px}
+details.help code{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1px 6px;font-size:13px}
 
-/* ---------- Langkah wizard ---------- */
+/* ---------- Wizard steps ---------- */
 .steps{display:flex;gap:6px;margin:0 0 18px}
-.step{flex:1;text-align:center;font-size:12.5px;font-weight:700;color:var(--dim);line-height:1.35}
-.step .num{display:inline-flex;width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:var(--surface);align-items:center;justify-content:center;font-weight:800;font-size:13px;margin-bottom:6px}
+.step{flex:1;text-align:center;font-size:12.5px;font-weight:600;color:var(--dim);line-height:1.35}
+.step .num{display:inline-flex;width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:var(--surface);align-items:center;justify-content:center;font-weight:700;font-size:12.5px;margin-bottom:6px}
 .step.done{color:var(--ok)} .step.done .num{background:var(--ok);border-color:var(--ok);color:#fff}
 .step.now{color:var(--accent-strong)} .step.now .num{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong)}
-.progress{height:8px;background:#ece5d8;border-radius:99px;overflow:hidden;margin-bottom:18px}
+.progress{height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;margin-bottom:18px}
 .progress i{display:block;height:100%;background:var(--accent);border-radius:99px}
 
 /* ---------- Inbox ---------- */
 .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px}
-.search{flex:1;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:0 16px;height:50px;min-width:0}
+.search{flex:1;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0 14px;height:48px;min-width:0}
 .search input{flex:1;border:0;outline:0;background:transparent;font-size:15px;min-width:0}
+@media(max-width:899px){ .toolbar{flex-wrap:wrap} .search{flex:1 1 100%} }
 .list{list-style:none;margin:0;padding:0;overflow:hidden}
 .list li{border-bottom:1px solid var(--border)} .list li:last-child{border-bottom:0}
-.mail-row{display:flex;gap:12px;width:100%;text-align:left;background:none;border:0;padding:15px 16px;align-items:flex-start}
+.mail-row{display:flex;gap:12px;width:100%;text-align:left;background:none;border:0;padding:14px 16px;align-items:flex-start}
 .mail-row:hover{background:var(--surface-2)}
-.avatar{width:42px;height:42px;flex:0 0 42px;border-radius:50%;background:var(--accent-soft);color:var(--accent-strong);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
+.avatar{width:40px;height:40px;flex:0 0 40px;border-radius:50%;background:var(--accent-soft);color:var(--accent-strong);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
 .row-main{flex:1;min-width:0}
 .row-top{display:flex;gap:8px;align-items:baseline}
 .row-from{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
 .row-date{flex:0 0 auto;font-size:12px;color:var(--dim)}
-.unread .row-from{font-weight:800} .unread .row-date{color:var(--accent);font-weight:700}
+.unread .row-from{font-weight:700} .unread .row-date{color:var(--accent);font-weight:600}
 .row-subj{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;display:block}
-.unread .row-subj{font-weight:700}
+.unread .row-subj{font-weight:600}
 .row-snip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;color:var(--dim)}
-.dot{width:9px;height:9px;border-radius:99px;background:var(--accent);display:inline-block;flex:0 0 9px;margin-top:5px}
+.dot{width:8px;height:8px;border-radius:99px;background:var(--accent);display:inline-block;flex:0 0 8px;margin-top:5px}
 .empty{text-align:center;padding:52px 18px;color:var(--dim);line-height:1.65}
 .empty b{color:var(--text);display:block;font-size:16px;margin-bottom:6px}
 .page-head{display:flex;align-items:baseline;gap:10px;margin:2px 2px 14px;flex-wrap:wrap}
 .page-head .spacer{flex:1}
-.chip{display:inline-flex;border:1px solid var(--border);border-radius:999px;padding:3px 11px;font-size:12.5px;font-weight:700;background:var(--surface)}
+.chip{display:inline-flex;border:1px solid var(--border);border-radius:999px;padding:3px 11px;font-size:12.5px;font-weight:600;background:var(--surface)}
 .chip-accent{color:var(--accent-strong);background:var(--accent-soft);border-color:transparent}
 
-/* ---------- Baca email & tulis ---------- */
+/* ---------- Read email & compose ---------- */
 .overlay{position:fixed;inset:0;z-index:40;background:var(--bg);overflow-y:auto}
 .overlay-inner{max-width:760px;margin:0 auto;padding:16px 16px 60px}
 .overlay-head{position:sticky;top:0;background:var(--bg);display:flex;align-items:center;gap:10px;padding:10px 0;z-index:2}
-.email-body{font-size:15.5px;line-height:1.75;word-break:break-word}
+.email-body{font-size:15.5px;line-height:1.7;word-break:break-word}
 .email-body img{max-width:100%;height:auto}
-pre.plain{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:15.5px;line-height:1.75}
-.attach{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-top:8px}
+pre.plain{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:15.5px;line-height:1.7}
+.attach{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:8px}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
-.fab{position:fixed;right:16px;bottom:96px;z-index:30;height:56px;padding:0 22px;border-radius:999px;border:0;background:var(--accent);color:#fff;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:15px}
+.fab{position:fixed;right:16px;bottom:96px;z-index:30;height:52px;padding:0 20px;border-radius:999px;border:0;background:var(--accent);color:#fff;font-weight:700;box-shadow:0 8px 20px rgba(15,23,42,.18);font-size:14.5px}
 .bottomnav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
-.bottomnav button{flex:1;border:0;background:none;padding:8px 4px;font-size:12px;color:var(--dim);border-radius:12px}
-.bottomnav button.active{color:var(--accent-strong);font-weight:800;background:var(--accent-soft)}
+.bottomnav button{flex:1;border:0;background:none;padding:8px 4px;font-size:12px;color:var(--dim);border-radius:10px}
+.bottomnav button.active{color:var(--accent-strong);font-weight:700;background:var(--accent-soft)}
 @media(min-width:900px){ .bottomnav{display:none} .fab{bottom:24px;right:24px} .shell{padding-bottom:40px} }
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:120px;z-index:60;background:#1c1917;color:#fff;padding:12px 18px;border-radius:999px;font-size:14px;max-width:92vw;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:120px;z-index:60;background:#0f172a;color:#fff;padding:12px 16px;border-radius:10px;font-size:14px;max-width:92vw;text-align:center;box-shadow:0 8px 24px rgba(15,23,42,.25)}
 @media(min-width:900px){ .toast{bottom:32px} }
 .spin{display:inline-block;animation:sp 1s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
 .section-card{margin-bottom:16px}
 .kv{display:flex;gap:10px;align-items:flex-start;font-size:14px;padding:9px 0;border-bottom:1px solid var(--border)}
 .kv:last-child{border-bottom:0}
-.kv b{flex:0 0 130px;font-weight:700}
+.kv b{flex:0 0 130px;font-weight:600}
 </style>
 </head>
 <body>
@@ -347,7 +350,7 @@ function identityForIncoming(m){
   return (hit||identities[0]||{}).email||"";
 }
 function statusPill(){
-  if(state.mode==="guest") return '<span class="status off"><span class="dot"></span>\uD83D\uDC64 Guest Mode</span>';
+  if(state.mode==="guest") return '<span class="status off"><span class="dot"></span>Guest Mode</span>';
   if(configured()) return '<span class="status on"><span class="dot"></span>Connected</span>';
   return '<span class="status off"><span class="dot"></span>Not connected</span>';
 }
@@ -568,7 +571,7 @@ function guestHtml(){
   const a=state.guestAddress||"";
   if(!a){
     if(state.guestLoading) return '<div class="card card-pad" style="text-align:center"><p class="muted">Creating a temporary address\u2026</p></div>';
-    return '<div class="card card-pad" style="text-align:center"><div style="font-size:40px">\u2709\uFE0F</div><h1 style="margin:8px 0 6px">Could not create an address</h1><p class="muted" style="margin:0">'+esc(state.guestError||"Guest mode is not enabled on this site.")+'</p><br><button class="btn btn-primary" onclick="enterGuest()">Try again</button></div>';
+    return '<div class="card card-pad" style="text-align:center"><div style="font-size:40px">✉</div><h1 style="margin:8px 0 6px">Could not create an address</h1><p class="muted" style="margin:0">'+esc(state.guestError||"Guest mode is not enabled on this site.")+'</p><br><button class="btn btn-primary" onclick="enterGuest()">Try again</button></div>';
   }
   const n=state.guestCreated.length;
   const maxed=n>=3;
@@ -800,11 +803,11 @@ function onSearch(v){ state.search=v; if(state.tab!=="inbox"){ state.tab="inbox"
 function render(){
   if(state.mode==="guest"){
     if(!guestBase()){
-      app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">\u2709\uFE0F</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
-        +'<div class="shell"><main class="main"><div class="card card-pad" style="text-align:center"><div style="font-size:40px">\u2709\uFE0F</div><h1 style="margin:8px 0 6px">Guest mode is not active yet</h1><p class="muted" style="margin:0">This copy has not been connected to the public Worker yet. The owner needs to enter the Worker URL first.</p></div></main></div>';
+      app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">T</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
+        +'<div class="shell"><main class="main"><div class="card card-pad" style="text-align:center"><div style="font-size:40px">✉</div><h1 style="margin:8px 0 6px">Guest mode is not active yet</h1><p class="muted" style="margin:0">This copy has not been connected to the public Worker yet. The owner needs to enter the Worker URL first.</p></div></main></div>';
       renderToast(); return;
     }
-    app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">✉️</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">Temporary address</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
+    app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">T</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">Temporary address</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
       +'<div class="shell"><main class="main"><div class="page-head"><h1>Guest Inbox</h1><span class="spacer"></span><span class="small">'+esc(state.guestAddress||"")+'</span></div>'+guestHtml()+'</main></div>'
       + guestReadHtml();
     renderToast(); loadAttPreviews(); return;
@@ -826,7 +829,7 @@ function render(){
   const pageTitle = needsSetup ? "Set up first — it only takes a moment" : state.tab==="inbox" ? "Inbox" : state.tab==="sent" ? "Sent" : "Settings";
   const pageSub = needsSetup ? "3 steps, no technical jargon." : state.tab==="sent" ? "Only stored on this device." : state.tab==="settings" ? "Connection, sender names, and quota info." : (state.activeAddress ? esc(state.activeAddress) : "@"+esc(cfg.domain));
 
-  app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">✉️</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
+  app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">T</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
     +'<div class="shell">'
     +(needsSetup?"":'<aside class="sidebar"><button class="side-btn" onclick="newCompose()">✎ &nbsp;Compose new email</button><div style="height:8px"></div><button class="side-btn '+(state.tab==="inbox"?"active":"")+'" onclick="goTab(\'inbox\')">📥 &nbsp;Inbox'+(unread?'<span class="count">'+unread+'</span>':"")+'</button><button class="side-btn '+(state.tab==="sent"?"active":"")+'" onclick="goTab(\'sent\')">➤ &nbsp;Sent</button><button class="side-btn '+(state.tab==="settings"?"active":"")+'" onclick="goTab(\'settings\')">⚙ &nbsp;Settings</button><p class="side-note">Mail to any @'+esc(cfg.domain)+' address arrives automatically. No need to create addresses one by one.</p></aside>')
     +'<main class="main"><div class="page-head"><h1>'+esc(pageTitle)+'</h1>'+(state.tab==="inbox"&&unreadShown&&!needsSetup?'<span class="chip chip-accent">'+unreadShown+" unread</span>":"")+'<span class="spacer"></span><span class="small">'+esc(pageSub)+'</span></div>'
