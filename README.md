@@ -11,9 +11,12 @@ Satu file `index.html` — buka langsung di browser, tanpa build, tanpa install.
   sementara acak `tmp-xxxxxxxxxx@terablox.store` dan hanya bisa **baca**
   email yang masuk ke alamat itu saja. Tidak bisa mengirim, tidak bisa
   melihat inbox, alamat, atau pengaturan pemilik. Tidak ada lagi tombol
-  login Pemilik di halaman ini. **Maksimal 2 alamat sementara per browser**
-  (tersimpan di localStorage) — alamat ke-2 dibuat lewat tombol "Ganti
-  alamat", alamat ke-3 ditolak; kedua alamat bisa dipilih lewat chip.
+  login Pemilik di halaman ini. **Maksimal 3 alamat sementara** — alamat
+  TIDAK dibuat di browser, tapi diminta ke Worker (`POST
+  /api/public/create-address`) yang membuat + mencatatnya di Cloudflare KV
+  per IP pengunjung (maks 3 per IP, selamanya). Alamat ke-2 dan ke-3 dibuat lewat
+  tombol "Ganti alamat", alamat ke-3 ditolak server; kedua alamat bisa
+  dipilih lewat chip.
 - **`/admin` — Pemilik:** login HANYA dengan kata sandi Worker (alamat
   Worker sudah diatur di dalam file, jadi tidak perlu dimasukkan lagi)
   — file `admin.html`, salinan dari `index.html` dengan mode boot Pemilik.
@@ -33,6 +36,13 @@ Satu file `index.html` — buka langsung di browser, tanpa build, tanpa install.
   hanya baca, dan difilter di server per alamat penerima. Kill-switch:
   set `PUBLIC_ENABLED=false` di Worker lalu Deploy.
 - Alamat Worker publik diatur di dalam `index.html` (`PUBLIC_WORKER_URL`).
+- **Pencatatan server (KV, wajib supaya batas 3 alamat ditegakkan server):**
+  di Cloudflare dashboard → Workers & Pages → KV → Create a namespace
+  (mis. `terablox-guest`), lalu di Settings Worker → Variables → KV
+  Namespace Bindings → Add binding: Variable name `GUEST_KV`, pilih
+  namespace tadi → Deploy. Tanpa binding ini, pembuatan alamat tetap jalan
+  tapi tidak tercatat (yang berlaku hanya batas di browser). Catatan KV:
+  key `guest-ip:<IP>` → `{addresses:[...], updated_at}`, tanpa TTL (selamanya).
 
 ## File lain
 

@@ -386,12 +386,6 @@ function renderListOnly(){ const el=document.getElementById("mail-list"); if(!el
    Mereka hanya bicara ke rute /api/public/* di Worker (tanpa password),
    yang di server hanya melayani alamat tmp-xxxxxxxxxx@terablox.store,
    hanya baca, dan selalu difilter per alamat. */
-function genGuestAddress(){
-  const chars="abcdefghijklmnopqrstuvwxyz0123456789"; const buf=new Uint32Array(10);
-  if(window.crypto && crypto.getRandomValues) crypto.getRandomValues(buf); else for(let i=0;i<10;i++) buf[i]=Math.floor(Math.random()*4294967296);
-  let s=""; for(let i=0;i<10;i++) s+=chars[buf[i]%chars.length];
-  return "tmp-"+s+"@"+cfg.domain.toLowerCase();
-}
 function saveGuestCreated(){ LS.set("guest_created", state.guestCreated); }
 function switchGuestAddress(email){
   email=(email||"").toLowerCase();
@@ -399,20 +393,50 @@ function switchGuestAddress(email){
   state.guestAddress=email; LS.set("guest_address", email);
   state.guestMessages=[]; state.guestOpenId=null; state.guestDetail=null; render(); loadGuestInbox();
 }
+/* Minta alamat tmp- baru ke Worker (POST /api/public/create-address).
+   Worker yang membuat + mencatatnya di KV (maks 2 per IP per 7 hari),
+   jadi batas ini tidak bisa diakali dengan hapus data browser. */
+async function mintGuestAddress(){
+  const base=guestBase(); if(!base) return { ok:false, error:"Mode tamu belum diaktifkan di web ini." };
+  let res, json=null;
+  try{
+    res=await fetch(base+"/api/public/create-address", { method:"POST" });
+    json=await res.json().catch(()=>null);
+  }catch(e){ return { ok:false, error:"Tidak bisa menghubungi Worker \u2014 periksa koneksi lalu coba lagi." }; }
+  if(!res.ok) return { ok:false, error:(json && json.error) || "Tidak bisa membuat alamat sementara." };
+  const addr=json && json.data ? json.data.address : "";
+  if(!addr) return { ok:false, error:"Worker tidak mengembalikan alamat." };
+  return { ok:true, address:addr };
+}
 function enterGuest(){
   if(!guestBase()){ toast("Mode tamu belum diaktifkan di web ini."); return; }
   if(!state.guestAddress){
-    if(state.guestCreated.length){ state.guestAddress=state.guestCreated[0]; }
-    else { state.guestAddress=genGuestAddress(); state.guestCreated.push(state.guestAddress); saveGuestCreated(); }
-    LS.set("guest_address", state.guestAddress);
+    if(state.guestCreated.length){ state.guestAddress=state.guestCreated[0]; LS.set("guest_address", state.guestAddress); }
+    else {
+      state.guestLoading=true; render();
+      mintGuestAddress().then(m=>{
+        state.guestLoading=false;
+        if(!m.ok){ state.guestError=m.error; state.mode="guest"; render(); return; }
+        state.guestAddress=m.address;
+        if(!state.guestCreated.includes(m.address)) state.guestCreated.push(m.address);
+        saveGuestCreated(); LS.set("guest_address", state.guestAddress);
+        state.mode="guest"; state.search=""; render(); loadGuestInbox();
+      });
+      return;
+    }
   }
   state.mode="guest"; state.search=""; render(); loadGuestInbox();
 }
 function rotateGuestAddress(){
-  if(state.guestCreated.length>=2){ toast("Maksimal 2 alamat sementara \u2014 kamu sudah memakai keduanya. Ketuk salah satu di bawah untuk beralih."); return; }
-  state.guestAddress=genGuestAddress(); state.guestCreated.push(state.guestAddress); saveGuestCreated(); LS.set("guest_address", state.guestAddress);
-  state.guestMessages=[]; state.guestOpenId=null; state.guestDetail=null; render(); loadGuestInbox();
-  toast("Alamat sementara baru dibuat ("+state.guestCreated.length+"/2).");
+  if(state.guestCreated.length>=3){ toast("Maksimal 3 alamat sementara \u2014 kamu sudah memakai ketiganya. Ketuk salah satu di bawah untuk beralih."); return; }
+  mintGuestAddress().then(m=>{
+    if(!m.ok){ toast(m.error); return; }
+    state.guestAddress=m.address;
+    if(!state.guestCreated.includes(m.address)) state.guestCreated.push(m.address);
+    saveGuestCreated(); LS.set("guest_address", state.guestAddress);
+    state.guestMessages=[]; state.guestOpenId=null; state.guestDetail=null; render(); loadGuestInbox();
+    toast("Alamat sementara baru dibuat ("+state.guestCreated.length+"/3).");
+  });
 }
 function lockOwner(){ location.href="./"; }
 function wipeAllData(){
@@ -484,10 +508,14 @@ function guestReadHtml(){
 }
 function guestHtml(){
   const a=state.guestAddress||"";
+  if(!a){
+    if(state.guestLoading) return '<div class="card card-pad" style="text-align:center"><p class="muted">Membuat alamat sementara\u2026</p></div>';
+    return '<div class="card card-pad" style="text-align:center"><div style="font-size:40px">\u2709\uFE0F</div><h1 style="margin:8px 0 6px">Tidak bisa membuat alamat</h1><p class="muted" style="margin:0">'+esc(state.guestError||"Mode tamu belum diaktifkan di web ini.")+'</p><br><button class="btn btn-primary" onclick="enterGuest()">Coba lagi</button></div>';
+  }
   const n=state.guestCreated.length;
-  const maxed=n>=2;
+  const maxed=n>=3;
   const chips=n>1 ? '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px">'+state.guestCreated.map(e=>'<button class="chip" style="'+(e===a?"background:var(--accent);color:#fff;border-color:var(--accent);font-weight:800;":"")+'" onclick="switchGuestAddress(\''+esc(e)+'\')">'+esc(e.split("@")[0])+'</button>').join("")+'</div>' : '';
-  return '<div class="card card-pad section-card" style="text-align:center"><p class="small" style="margin:0 0 6px">Alamat sementara kamu ('+n+'/2)</p><p style="font-family:monospace;font-size:17px;font-weight:800;word-break:break-all;margin:0 0 12px">'+esc(a)+'</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn btn-primary" onclick="copyAddress(\''+esc(a)+'\')">\uD83D\uDCCB Salin alamat</button><button class="btn" onclick="loadGuestInbox()">\u21BB Perbarui</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"><button class="btn" onclick="rotateGuestAddress()">\uD83D\uDD04 Ganti alamat</button></div>'+chips+(maxed?'<p class="small" style="margin:12px 0 0">Kamu sudah memakai 2/2 alamat sementara (maksimal). Ketuk salah satu alamat di atas untuk beralih.</p>':'<p class="small" style="margin:12px 0 0">Siapa pun yang tahu alamat ini bisa membaca inbox-nya \u2014 jangan pakai untuk hal penting. Email dicek otomatis tiap 2 menit selama halaman terbuka.</p>')+'</div>'
+  return '<div class="card card-pad section-card" style="text-align:center"><p class="small" style="margin:0 0 6px">Alamat sementara kamu ('+n+'/3)</p><p style="font-family:monospace;font-size:17px;font-weight:800;word-break:break-all;margin:0 0 12px">'+esc(a)+'</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn btn-primary" onclick="copyAddress(\''+esc(a)+'\')">\uD83D\uDCCB Salin alamat</button><button class="btn" onclick="loadGuestInbox()">\u21BB Perbarui</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"><button class="btn" onclick="rotateGuestAddress()">\uD83D\uDD04 Ganti alamat</button></div>'+chips+(maxed?'<p class="small" style="margin:12px 0 0">Kamu sudah memakai 3/3 alamat sementara (maksimal, dicatat di server, selamanya). Ketuk salah satu alamat di atas untuk beralih.</p>':'<p class="small" style="margin:12px 0 0">Siapa pun yang tahu alamat ini bisa membaca inbox-nya \u2014 jangan pakai untuk hal penting. Email dicek otomatis tiap 2 menit selama halaman terbuka.</p>')+'</div>'
     +'<div class="toolbar"><div class="search"><span>\uD83D\uDD0D</span><input id="search-input" type="search" placeholder="Cari pengirim atau subjek\u2026" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div></div>'
     + guestListHtml();
 }
@@ -687,7 +715,7 @@ function render(){
 /* Init */
 /* Migrasi: alamat tamu lama (sebelum ada batas 2) dihitung sebagai alamat ke-1. */
 if(!Array.isArray(state.guestCreated)) state.guestCreated=[];
-state.guestCreated=state.guestCreated.filter(e=>typeof e==="string" && /^tmp-[a-z0-9]{10}@/.test(e)).slice(0,2);
+state.guestCreated=state.guestCreated.filter(e=>typeof e==="string" && /^tmp-[a-z0-9]{10}@/.test(e)).slice(0,3);
 if(!state.guestCreated.length && state.guestAddress){ state.guestCreated=[state.guestAddress]; saveGuestCreated(); }
 /* Boot: halaman utama langsung mode Tamu; /admin langsung mode Pemilik. */
 if(BOOT_MODE==="owner"){ state.mode="owner"; } else { state.mode="guest"; }
