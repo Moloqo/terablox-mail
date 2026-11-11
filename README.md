@@ -5,6 +5,22 @@ Single-file webmail for `@terablox.store`, hosted on GitHub Pages:
 
 One `index.html` file — open it straight in the browser, no build, no install.
 
+## What's new in v7 (2026-11-12)
+
+- **Send with attachments** (owner): attach files when composing (max 10 MB
+  total, sent as base64 to Resend); sent mail shows a 📎 mark.
+- **New-mail alerts** (owner + guest): a toast + unread count in the tab
+  title when new mail arrives during auto-refresh; optional browser
+  notifications (toggle in Settings → About & quota).
+- **Reply uses the right address** (owner): Reply/Forward now send from the
+  address the original mail was sent to, when that address is one of your
+  sender names.
+- **Image attachment previews** (owner + guest): image attachments show a
+  thumbnail in the read view; click Download for the full file.
+- **Unread filter + dark mode**: an Unread toggle above the Inbox, and a
+  🌙/☀️ button in the header to switch dark/light (saved per browser).
+- No Worker change — Worker v6 still applies.
+
 ## Two pages (no longer a single mode-picker screen)
 
 - **Main page `/` — Guest (public):** visitors instantly get a random

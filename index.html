@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Terablox Mail — @terablox.store</title>
 <style>
-/* Terablox Mail v2 — redesign: wizard 3 langkah, bahasa sederhana, status selalu terlihat.
+/* Terablox Mail v7 — English UI + attachments, new-mail alerts, reply-from, image previews, unread filter, dark mode.
    Satu file, tanpa server, tanpa font eksternal. Semua panggilan Resend lewat Worker kamu.
    API key Resend TIDAK pernah ada di file ini. Yang disimpan di localStorage browser ini:
    URL Worker + kata sandi, nama pengirim, daftar terkirim lokal, tanda sudah dibaca. */
@@ -15,6 +15,20 @@
   --ok:#15803d; --ok-soft:#dcfce7; --bad:#dc2626; --bad-soft:#fee2e2; --warn:#b45309;
   --radius:18px; --shadow:0 1px 2px rgba(28,25,23,.05),0 10px 30px -18px rgba(28,25,23,.25);
 }
+[data-theme="dark"]{
+  --bg:#1c1917; --surface:#292524; --surface-2:#44403c; --text:#f5f5f4; --dim:#a8a29e;
+  --border:#44403c; --accent:#f59e0b; --accent-strong:#fbbf24; --accent-soft:#451a03;
+  --ok:#4ade80; --ok-soft:#14532d; --bad:#f87171; --bad-soft:#450a0a; --warn:#fbbf24;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -18px rgba(0,0,0,.5);
+}
+[data-theme="dark"] .header{background:rgba(28,25,23,.92)}
+[data-theme="dark"] .side-btn:hover{background:#44403c}
+[data-theme="dark"] .progress{background:#44403c}
+[data-theme="dark"] details.help code{background:#44403c}
+.theme-btn{width:40px;height:40px;flex:0 0 40px;border-radius:12px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:18px}
+.att-img{max-width:100%;height:auto;border-radius:12px;margin-top:8px;display:block}
+.att-prev{margin-top:8px}
+.btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong)}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.55}
@@ -160,7 +174,7 @@ let cfg = {
 let identities = LS.get("identities", []);
 let sentLocal = LS.get("sent", []);
 let readFlags = LS.get("read", {});
-let state = { tab:"inbox", search:"", messages:[], loading:false, error:null, openId:null, detail:null, detailLoading:false, compose:null, toast:null, setupStep:1, lastSync:null, showPass:false, activeAddress: LS.get("active_address","")||"", addrManageOpen:false, mode:BOOT_MODE, guestAddress: LS.get("guest_address","")||"", guestCreated: LS.get("guest_created",[])||[], guestMessages:[], guestLoading:false, guestError:null, guestOpenId:null, guestDetail:null, guestDetailLoading:false };
+let state = { tab:"inbox", search:"", messages:[], loading:false, error:null, openId:null, detail:null, detailLoading:false, compose:null, toast:null, setupStep:1, lastSync:null, showPass:false, activeAddress: LS.get("active_address","")||"", addrManageOpen:false, mode:BOOT_MODE, guestAddress: LS.get("guest_address","")||"", guestCreated: LS.get("guest_created",[])||[], guestMessages:[], guestLoading:false, guestError:null, guestOpenId:null, guestDetail:null, guestDetailLoading:false, unreadOnly:false, theme:LS.get("theme","light"), notifyEnabled:LS.get("notify_enabled",false), attPreviewUrls:{} };
 function saveCfg(){ LS.set("proxy_url",cfg.proxyUrl); LS.set("proxy_password",cfg.proxyPassword); LS.set("domain",cfg.domain); }
 function saveIdent(){ LS.set("identities",identities); }
 function saveSent(){ LS.set("sent",sentLocal); }
@@ -178,7 +192,23 @@ function snippetFrom(text, html){ let s=text||""; if(!s&&html) s=html.replace(/<
 function textToHtml(text){ const e=esc(text); return e.split(/\n{2,}/).map(p=>"<p>"+p.replace(/\n/g,"<br>")+"</p>").join(""); }
 function sanitizeHtml(html){ const doc=new DOMParser().parseFromString(html,"text/html"); doc.querySelectorAll("script,style,iframe,object,embed,form,link,meta,title,noscript,base").forEach(el=>el.remove()); doc.querySelectorAll("*").forEach(el=>{ for(const a of Array.from(el.attributes)){ const n=a.name.toLowerCase(); if(n.startsWith("on")||n==="srcdoc"||n==="formaction") el.removeAttribute(a.name); else if((n==="href"||n==="src"||n==="xlink:href")&&/^\s*(javascript|vbscript|data:text\/html)/i.test(a.value)) el.removeAttribute(a.name); } if(el.tagName==="A"){ el.setAttribute("target","_blank"); el.setAttribute("rel","noopener noreferrer"); } if(el.tagName==="IMG"){ el.setAttribute("style",(el.getAttribute("style")||"")+";max-width:100%;height:auto"); } }); return doc.body.innerHTML; }
 function toast(msg){ state.toast=msg; renderToast(); setTimeout(()=>{ state.toast=null; renderToast(); },3600); }
-function renderToast(){ document.getElementById("toast-root").innerHTML = state.toast? '<div class="toast">'+esc(state.toast)+"</div>":""; }
+function renderToast(){ updateTitleBadge(); document.getElementById("toast-root").innerHTML = state.toast? '<div class="toast">'+esc(state.toast)+"</div>":""; }
+function updateTitleBadge(){
+  if(typeof unreadCount!=="function") return;
+  const n = state.mode==="guest" ? 0 : unreadCount();
+  document.title = n>0 ? "("+n+") Terablox Mail — @terablox.store" : "Terablox Mail — @terablox.store";
+}
+function announceNewMail(prevIds, list, label){
+  if(!prevIds || !prevIds.size) return;
+  const fresh=list.filter(m=>!prevIds.has(m.id));
+  if(!fresh.length) return;
+  const n=fresh.length;
+  const msg=(n===1?"1 new email":n+" new emails")+(label?" — "+label:"");
+  toast(msg);
+  if(state.notifyEnabled && document.hidden && "Notification" in window && Notification.permission==="granted"){
+    try{ new Notification("Terablox Mail",{body:msg+"\n"+fresh.slice(0,3).map(m=>displaySender(m.from)+": "+(m.subject||"(no subject)")).join("\n")}); }catch(e){}
+  }
+}
 </script>
 <script>
 "use strict";
@@ -233,7 +263,9 @@ async function loadInbox(){
       after = items.length ? items[items.length-1].id : null;
       page++;
     }
+    const prevIds = new Set(state.messages.map(m=>m.id));
     state.messages = all.map(m=>({ id:m.id, from:m.from||"", to:m.to||[], subject:m.subject||"(no subject)", created_at:m.created_at, attachments:m.attachments||[], snippet:"", _raw:m }));
+    announceNewMail(prevIds, state.messages);
     state.lastSync = new Date().toISOString();
     render();
     let fetched=0;
@@ -259,6 +291,12 @@ async function downloadAttachment(emailId, attId, filename){
     const a=document.createElement("a"); a.href=meta.download_url; a.download=meta.filename||filename||"attachment"; a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove();
   }catch(e){ toast(e.message||"Failed to download the attachment."); }
 }
+async function getAttachmentUrl(emailId, attId){
+  try{
+    const meta = await resend("GET","/emails/receiving/"+encodeURIComponent(emailId)+"/attachments/"+encodeURIComponent(attId));
+    return meta && meta.download_url ? meta.download_url : null;
+  }catch(e){ return null; }
+}
 async function sendCurrentCompose(){
   const c=state.compose; if(!c) return;
   const identity = identities.find(i=>i.email===c.fromEmail) || identities[0];
@@ -268,9 +306,10 @@ async function sendCurrentCompose(){
   if(!c.body.trim()) throw new Error("The email body is empty.");
   const headers={}; if(c.inReplyTo){ headers["In-Reply-To"]=c.inReplyTo; headers["References"]=c.references||c.inReplyTo; }
   const payload={ from: identity.name? (identity.name+" <"+identity.email+">") : identity.email, to:to, subject:c.subject||"(no subject)", text:c.body, html:textToHtml(c.body) };
+  if(c.attachments && c.attachments.length) payload.attachments=c.attachments.map(a=>({ filename:a.filename, content:a.content, content_type:a.content_type }));
   if(cc.length) payload.cc=cc; if(bcc.length) payload.bcc=bcc; if(Object.keys(headers).length) payload.headers=headers;
   const data = await resend("POST","/emails",{body:payload});
-  sentLocal.unshift({ id: data&&data.id?data.id:("local-"+Date.now()), from:identity.email, to:to, subject:payload.subject, body_text:c.body, created_at:new Date().toISOString() });
+  sentLocal.unshift({ id: data&&data.id?data.id:("local-"+Date.now()), from:identity.email, to:to, subject:payload.subject, body_text:c.body, attachments:(c.attachments||[]).map(a=>a.filename), created_at:new Date().toISOString() });
   saveSent();
   state.compose=null; state.tab="sent"; render(); toast("Email sent.");
 }
@@ -288,10 +327,25 @@ function filteredMessages(){
     const a=state.activeAddress.toLowerCase();
     list=list.filter(m=> (m.to||[]).some(raw=> parseAddress(raw).email.toLowerCase()===a));
   }
+  if(state.unreadOnly) list=list.filter(m=>!readFlags[m.id]);
   const q=state.search.trim().toLowerCase(); if(!q) return list;
   return list.filter(m=> (displaySender(m.from)+" "+m.subject+" "+(m.snippet||"")).toLowerCase().includes(q));
 }
 function setActiveAddress(v){ state.activeAddress=(v||"").toLowerCase(); LS.set("active_address", state.activeAddress); state.search=""; render(); }
+function themeBtn(){ return '<button class="theme-btn" onclick="toggleTheme()" title="Switch dark / light mode" aria-label="Switch dark / light mode">'+(state.theme==="dark"?"☀️":"🌙")+'</button>'; }
+function toggleTheme(){ state.theme = state.theme==="dark" ? "light" : "dark"; LS.set("theme", state.theme); document.documentElement.setAttribute("data-theme", state.theme); render(); }
+function toggleNotify(){
+  if(!("Notification" in window)){ toast("This browser does not support notifications."); return; }
+  if(Notification.permission==="denied"){ toast("Notifications are blocked — allow them in your browser settings first."); return; }
+  if(Notification.permission==="granted"){ state.notifyEnabled=!state.notifyEnabled; LS.set("notify_enabled", state.notifyEnabled); render(); toast(state.notifyEnabled?"New mail alerts on.":"New mail alerts off."); return; }
+  Notification.requestPermission().then(pp=>{ if(pp==="granted"){ state.notifyEnabled=true; LS.set("notify_enabled", true); render(); toast("New mail alerts on."); } else { toast("Notifications not enabled."); } });
+}
+function toggleUnreadOnly(){ state.unreadOnly=!state.unreadOnly; render(); }
+function identityForIncoming(m){
+  const addrs=[...(m.to||[]), ...(m.cc||[])].map(a=>parseAddress(a).email.toLowerCase());
+  const hit=identities.find(i=>addrs.includes(i.email.toLowerCase()));
+  return (hit||identities[0]||{}).email||"";
+}
 function statusPill(){
   if(state.mode==="guest") return '<span class="status off"><span class="dot"></span>\uD83D\uDC64 Guest Mode</span>';
   if(configured()) return '<span class="status on"><span class="dot"></span>Connected</span>';
@@ -361,6 +415,7 @@ function listHtml(){
   if(state.loading) return '<div class="card empty">Loading inbox…</div>';
   if(state.error) return '<div class="card card-pad"><span class="err">'+esc(state.error)+'</span><br><br><button class="btn" onclick="loadInbox()">Try again</button></div>';
   if(!list.length){
+    if(state.unreadOnly && !state.search) return '<div class="card empty"><b>No unread emails</b>You are all caught up.<br><br><button class="btn" onclick="toggleUnreadOnly()">Show all emails</button></div>';
     if(state.activeAddress && !state.search) return '<div class="card empty"><b>No mail for '+esc(state.activeAddress)+' yet</b>This address is active — mail sent here will show up here.<br><br><button class="btn" onclick="setActiveAddress(\'\')">View all addresses</button></div>';
     return '<div class="card empty"><b>'+(state.search?"No results":"No incoming mail yet")+'</b>'+(state.search?"Try a different keyword.":("Mail to any @"+esc(cfg.domain)+" address will show up here.<br>Press the <b>Refresh</b> button above to check now."))+"</div>";
   }
@@ -441,9 +496,10 @@ function rotateGuestAddress(){
 function lockOwner(){ location.href="./"; }
 function wipeAllData(){
   if(!confirm("Delete ALL Terablox Mail data in this browser? The Worker URL, password, sender names, sent mail, read marks, and guest addresses will be gone.")) return;
-  ["proxy_url","proxy_password","domain","identities","sent","read","active_address","guest_address","guest_created"].forEach(k=>{ try{ localStorage.removeItem("tbm_"+k); }catch(e){} });
+  ["proxy_url","proxy_password","domain","identities","sent","read","active_address","guest_address","guest_created","theme","notify_enabled"].forEach(k=>{ try{ localStorage.removeItem("tbm_"+k); }catch(e){} });
   cfg={proxyUrl:"",proxyPassword:"",domain:"terablox.store"}; identities=[]; sentLocal=[]; readFlags={};
   state.messages=[]; state.activeAddress=""; state.guestAddress=""; state.guestCreated=[]; state.guestMessages=[];
+  state.theme="light"; state.notifyEnabled=false; document.documentElement.removeAttribute("data-theme");
   state.mode="owner"; state.tab="inbox"; state.setupStep=1; render();
 }
 async function loadGuestInbox(){
@@ -453,7 +509,9 @@ async function loadGuestInbox(){
     const res=await fetch(base+"/api/public/inbox?to="+encodeURIComponent(state.guestAddress));
     const json=await res.json().catch(()=>null);
     if(!res.ok) throw new Error((json && json.error) || ("Guest mode returned an error ("+res.status+")."));
+    const prevIds = new Set(state.guestMessages.map(m=>m.id));
     state.guestMessages=(Array.isArray(json && json.data) ? json.data : []).map(m=>({...m, subject:m.subject||"(no subject)"}));
+    announceNewMail(prevIds, state.guestMessages, state.guestAddress);
   }catch(e){ state.guestError=e.message||"Failed to load the guest inbox."; }
   state.guestLoading=false; render();
 }
@@ -500,7 +558,7 @@ function guestReadHtml(){
       +'<div style="display:flex;gap:12px;margin-top:14px"><span class="avatar">'+esc(initialsOf(m.from||""))+'</span><div style="min-width:0;font-size:14px"><div style="font-weight:700">'+esc(displaySender(m.from||""))+'</div><div style="color:var(--dim);font-family:monospace;font-size:12px;word-break:break-all">'+esc(parseAddress(m.from||"").email)+'</div><div style="color:var(--dim);font-size:12px;margin-top:4px">To: '+esc((m.to||[]).join(", "))+'</div><div style="color:var(--dim);font-size:12px">'+esc(fmtFullDate(m.created_at))+'</div></div></div>'
       +'<hr style="border:0;border-top:1px solid var(--border);margin:18px 0">'
       +(m.html? '<div class="email-body">'+sanitizeHtml(m.html)+"</div>" : '<pre class="plain">'+esc(m.text||"(This email has no text content.)")+"</pre>")
-      +(atts.length? '<div style="margin-top:20px"><b>Attachments ('+atts.length+')</b>'+atts.map(a=>'<div class="attach"><span>📎</span><span style="flex:1;min-width:0"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px">'+esc(a.filename||"attachment")+'</span><span style="font-size:12px;color:var(--dim)">'+esc(a.content_type||"file")+" · "+esc(fmtSize(a.size))+'</span></span><button class="btn" style="min-height:40px" onclick="downloadGuestAttachment(\''+esc(state.guestOpenId)+'\',\''+esc(a.id)+'\',\''+esc(a.filename||"attachment")+'\')">Download</button></div>').join("")+"</div>":"")
+      +(atts.length? '<div style="margin-top:20px"><b>Attachments ('+atts.length+')</b>'+atts.map(a=>attHtml(a, state.guestOpenId, true)).join("")+"</div>":"")
       +'<p class="small" style="margin-top:20px">Guest mode: read-only — you cannot reply or forward.</p>'
       +"</article>";
   }
@@ -598,7 +656,36 @@ function copyAddress(email){
 function fallbackCopy(text, done){ const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); done(); }catch(e){ toast(text); } ta.remove(); }
 function sentHtml(){
   if(!sentLocal.length) return '<div class="card empty"><b>No sent mail yet</b>Mail you send from this webmail is recorded here.<br><span class="small">Note: this list is only stored on this device.</span></div>';
-  return '<div class="card"><ul class="list">'+sentLocal.map(s=>'<li><div style="padding:14px 16px"><div style="display:flex;gap:8px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">To: '+esc((s.to||[]).join(", "))+'</span><span class="row-date">'+esc(fmtListDate(s.created_at))+'</span></div><div class="row-subj">'+esc(s.subject||"(no subject)")+'</div><div class="row-snip">'+esc(String(s.body_text||"").replace(/\s+/g," ").slice(0,120)||"—")+'</div></div></li>').join("")+"</ul></div>";
+  return '<div class="card"><ul class="list">'+sentLocal.map(s=>'<li><div style="padding:14px 16px"><div style="display:flex;gap:8px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">To: '+esc((s.to||[]).join(", "))+'</span><span class="row-date">'+esc(fmtListDate(s.created_at))+'</span></div><div class="row-subj">'+esc(s.subject||"(no subject)")+(s.attachments&&s.attachments.length?" 📎":"")+'</div><div class="row-snip">'+esc(String(s.body_text||"").replace(/\s+/g," ").slice(0,120)||"—")+'</div></div></li>').join("")+"</ul></div>";
+}
+async function getGuestAttachmentUrl(emailId, attId){
+  try{
+    const res=await fetch(guestBase()+"/api/public/attachment?email="+encodeURIComponent(emailId)+"&att="+encodeURIComponent(attId)+"&to="+encodeURIComponent(state.guestAddress));
+    const json=await res.json().catch(()=>null);
+    const meta=json && json.data ? json.data : null;
+    return meta && meta.download_url ? meta.download_url : null;
+  }catch(e){ return null; }
+}
+function isImageAtt(a){ return /^image\//i.test(a.content_type||""); }
+function attHtml(a, emailId, guest){
+  const chip='<div class="attach"><span>📎</span><span style="flex:1;min-width:0"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px">'+esc(a.filename||"attachment")+'</span><span style="font-size:12px;color:var(--dim)">'+esc(a.content_type||"file")+" · "+esc(fmtSize(a.size))+'</span></span><button class="btn" style="min-height:40px" onclick="'+(guest?"downloadGuestAttachment":"downloadAttachment")+'(\''+esc(emailId)+'\',\''+esc(a.id)+'\',\''+esc(a.filename||"attachment")+'\')">Download</button></div>';
+  if(!isImageAtt(a)) return chip;
+  return chip+'<div class="att-prev"><img class="att-img" data-email="'+esc(emailId)+'" data-att="'+esc(a.id)+'" data-guest="'+(guest?"1":"0")+'" alt="'+esc(a.filename||"attachment")+'" style="display:none"><span class="small att-loading">Loading preview…</span></div>';
+}
+async function loadAttPreviews(){
+  const imgs=document.querySelectorAll("img.att-img[data-att]:not([data-done])");
+  for(const img of imgs){
+    img.dataset.done="1";
+    const key=img.dataset.email+"|"+img.dataset.att;
+    let url=state.attPreviewUrls[key];
+    if(!url){
+      url = img.dataset.guest==="1" ? await getGuestAttachmentUrl(img.dataset.email, img.dataset.att) : await getAttachmentUrl(img.dataset.email, img.dataset.att);
+      if(url) state.attPreviewUrls[key]=url;
+    }
+    const box=img.parentElement;
+    if(url){ img.src=url; img.style.display="block"; const s=box.querySelector(".att-loading"); if(s) s.remove(); }
+    else if(box){ box.remove(); }
+  }
 }
 function authChip(label, value){ if(!value) return ""; const color=value==="pass"?"var(--ok)":value==="fail"?"var(--bad)":"var(--dim)"; const t=value==="pass"?"pass":value==="fail"?"fail":value; return '<span class="chip" style="color:'+color+'">'+label+": "+esc(t)+"</span>"; }
 function readHtml(){
@@ -614,7 +701,7 @@ function readHtml(){
       +(m.authentication?'<div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--dim)">Sender security:</span>'+authChip("SPF",m.authentication.spf)+authChip("DKIM",m.authentication.dkim)+authChip("DMARC",m.authentication.dmarc)+"</div>":"")
       +'<hr style="border:0;border-top:1px solid var(--border);margin:18px 0">'
       +(m.html? '<div class="email-body">'+sanitizeHtml(m.html)+"</div>" : '<pre class="plain">'+esc(m.text||"(This email has no text content.)")+"</pre>")
-      +(atts.length? '<div style="margin-top:20px"><b>Attachments ('+atts.length+')</b>'+atts.map(a=>'<div class="attach"><span>📎</span><span style="flex:1;min-width:0"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px">'+esc(a.filename||"attachment")+'</span><span style="font-size:12px;color:var(--dim)">'+esc(a.content_type||"file")+" · "+esc(fmtSize(a.size))+'</span></span><button class="btn" style="min-height:40px" onclick="downloadAttachment(\''+esc(state.openId)+'\',\''+esc(a.id)+'\',\''+esc(a.filename||"attachment")+'\')">Download</button></div>').join("")+"</div>":"")
+      +(atts.length? '<div style="margin-top:20px"><b>Attachments ('+atts.length+')</b>'+atts.map(a=>attHtml(a, state.openId, false)).join("")+"</div>":"")
       +'<div class="actions"><button class="btn btn-primary" onclick="startReply(false)">↩ Reply</button><button class="btn" onclick="startReply(true)">Reply all</button><button class="btn" onclick="startForward()">➜ Forward</button><button class="btn" onclick="markUnread()">Mark as unread</button></div>'
       +"</article>";
   }
@@ -623,8 +710,8 @@ function readHtml(){
 function markUnread(){ if(state.openId){ delete readFlags[state.openId]; saveRead(); } closeRead(); }
 function closeRead(){ state.openId=null; state.detail=null; render(); }
 function quoteBlock(m){ const body=(m.text||"").trim(); const q=body?body.split("\n").map(l=>"> "+l).join("\n"):"> (message content not available as text)"; return "\n\nOn "+fmtFullDate(m.created_at)+", "+displaySender(m.from||"")+" wrote:\n"+q; }
-function startReply(all){ const m=state.detail; if(!m) return; const sender=parseAddress((m.reply_to&&m.reply_to[0])||m.from||""); let cc=[]; if(all){ const mine=new Set(identities.map(i=>i.email.toLowerCase())); const pool=[...(m.to||[]),...(m.cc||[])].map(a=>parseAddress(a).email).filter(e=>e.toLowerCase()!==sender.email.toLowerCase()&&!mine.has(e.toLowerCase())&&!e.toLowerCase().endsWith("@"+cfg.domain.toLowerCase())); cc=Array.from(new Set(pool)); } state.compose={ title:all?"Reply all":"Reply to email", fromEmail:(identities[0]||{}).email||"", to:sender.email, cc:cc.join(", "), bcc:"", subject:/^re:/i.test(m.subject||"")?m.subject:("Re: "+(m.subject||"")), body:quoteBlock(m), inReplyTo:m.message_id||undefined, references:m.message_id||undefined }; render(); }
-function startForward(){ const m=state.detail; if(!m) return; const header=["---------- Forwarded message ----------","From: "+(m.from||""),"Date: "+fmtFullDate(m.created_at),"Subject: "+(m.subject||""),"To: "+(m.to||[]).join(", "),"",(m.text||"").trim()].join("\n"); state.compose={ title:"Forward email", fromEmail:(identities[0]||{}).email||"", to:"", cc:"", bcc:"", subject:/^fwd:/i.test(m.subject||"")?m.subject:("Fwd: "+(m.subject||"")), body:"\n\n"+header }; render(); }
+function startReply(all){ const m=state.detail; if(!m) return; const sender=parseAddress((m.reply_to&&m.reply_to[0])||m.from||""); let cc=[]; if(all){ const mine=new Set(identities.map(i=>i.email.toLowerCase())); const pool=[...(m.to||[]),...(m.cc||[])].map(a=>parseAddress(a).email).filter(e=>e.toLowerCase()!==sender.email.toLowerCase()&&!mine.has(e.toLowerCase())&&!e.toLowerCase().endsWith("@"+cfg.domain.toLowerCase())); cc=Array.from(new Set(pool)); } state.compose={ title:all?"Reply all":"Reply to email", fromEmail:identityForIncoming(m), to:sender.email, cc:cc.join(", "), bcc:"", subject:/^re:/i.test(m.subject||"")?m.subject:("Re: "+(m.subject||"")), body:quoteBlock(m), inReplyTo:m.message_id||undefined, references:m.message_id||undefined, attachments:[] }; render(); }
+function startForward(){ const m=state.detail; if(!m) return; const header=["---------- Forwarded message ----------","From: "+(m.from||""),"Date: "+fmtFullDate(m.created_at),"Subject: "+(m.subject||""),"To: "+(m.to||[]).join(", "),"",(m.text||"").trim()].join("\n"); state.compose={ title:"Forward email", fromEmail:identityForIncoming(m), to:"", cc:"", bcc:"", subject:/^fwd:/i.test(m.subject||"")?m.subject:("Fwd: "+(m.subject||"")), body:"\n\n"+header, attachments:[] }; render(); }
 function composeHtml(){
   const c=state.compose; if(!c) return "";
   if(!identities.length) return '<div class="overlay"><div class="overlay-inner"><div class="overlay-head"><button class="icon-btn" onclick="closeCompose()">✕</button><h2>'+esc(c.title)+'</h2></div><div class="card card-pad"><b>No sender name yet.</b><p class="muted">Add a sender address first (for example hello@'+esc(cfg.domain)+') in Settings.</p><br><button class="btn btn-primary" onclick="closeCompose();goTab(\'settings\')">Open Settings</button></div></div></div>';
@@ -637,12 +724,48 @@ function composeHtml(){
     +'<div class="field"><label for="c-bcc">Bcc <span style="font-weight:400;color:var(--dim)">(optional)</span></label><input id="c-bcc" type="text" value="'+esc(c.bcc)+'" oninput="updCompose(\'bcc\',this.value)"></div>'
     +'<div class="field"><label for="c-subj">Subject</label><input id="c-subj" type="text" value="'+esc(c.subject)+'" oninput="updCompose(\'subject\',this.value)"></div>'
     +'<div class="field"><label for="c-body">Email body</label><textarea id="c-body" rows="14" placeholder="Write your email here…" oninput="updCompose(\'body\',this.value)">'+esc(c.body)+'</textarea></div>'
+    +'<div class="field"><label>Attachments <span style="font-weight:400;color:var(--dim)">(optional, max 10 MB total)</span></label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn" onclick="document.getElementById(\'c-files\').click()">📎 Attach files</button><span class="small" id="att-summary"></span></div><input id="c-files" type="file" multiple style="display:none" onchange="onAttachFiles(this)"><div id="att-list" style="margin-top:8px"></div></div>'
     +'<p class="err" id="compose-error"></p></div></div></div>';
 }
 function updCompose(k,v){ if(state.compose) state.compose[k]=v; }
 function closeCompose(){ state.compose=null; render(); }
-async function doSend(){ const btn=document.getElementById("send-btn"); const errEl=document.getElementById("compose-error"); if(btn){btn.disabled=true; btn.textContent="Sending…";} if(errEl) errEl.textContent=""; try{ await sendCurrentCompose(); }catch(e){ if(errEl) errEl.textContent=e.message||"Failed to send email."; if(btn){btn.disabled=false; btn.textContent="Send ➤";} } }
-function newCompose(){ state.compose={ title:"New email", fromEmail:(identities.find(i=>i.email.toLowerCase()===(state.activeAddress||"").toLowerCase())||identities[0]||{}).email||"", to:"", cc:"", bcc:"", subject:"", body:"" }; render(); }
+const MAX_ATTACH_TOTAL = 10*1024*1024;
+function onAttachFiles(input){
+  const files = input && input.files ? Array.from(input.files) : [];
+  if(!state.compose || !files.length) return;
+  const c = state.compose;
+  c.attachments = c.attachments || [];
+  let total = c.attachments.reduce((s,a)=>s+(a.size||0),0);
+  let skipped = 0, pending = 0;
+  const btn=document.getElementById("send-btn");
+  files.forEach(f=>{
+    if(total + f.size > MAX_ATTACH_TOTAL){ skipped++; return; }
+    total += f.size; pending++;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const dataUrl = String(reader.result||"");
+      const content = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+      c.attachments.push({ filename:f.name, content_type:f.type||"application/octet-stream", size:f.size, content:content });
+      c._attPending=(c._attPending||0)-1; renderAttList();
+      if((c._attPending||0)<=0 && btn) btn.disabled=false;
+    };
+    reader.onerror = ()=>{ c._attPending=(c._attPending||0)-1; if((c._attPending||0)<=0 && btn) btn.disabled=false; };
+    c._attPending=(c._attPending||0)+1;
+    reader.readAsDataURL(f);
+  });
+  if(pending && btn) btn.disabled=true;
+  if(skipped) toast("Some files were skipped — attachments are limited to 10 MB total.");
+  input.value = "";
+}
+function renderAttList(){
+  const el=document.getElementById("att-list"); if(!el || !state.compose) return;
+  const atts=state.compose.attachments||[];
+  el.innerHTML = atts.map((a,i)=>'<span class="chip" style="margin:0 6px 6px 0">'+esc(a.filename)+' ('+esc(fmtSize(a.size))+') <button type="button" onclick="removeAttachment('+i+')" style="border:0;background:none;cursor:pointer;font-weight:800" aria-label="Remove attachment">✕</button></span>').join("") || '<span class="small">No files attached yet.</span>';
+  const sum=document.getElementById("att-summary"); if(sum) sum.textContent = atts.length ? (atts.length+" file"+(atts.length>1?"s":"")+" · "+fmtSize(atts.reduce((s,a)=>s+(a.size||0),0))+" total") : "";
+}
+function removeAttachment(i){ if(!state.compose || !state.compose.attachments) return; state.compose.attachments.splice(i,1); renderAttList(); }
+async function doSend(){ const btn=document.getElementById("send-btn"); const errEl=document.getElementById("compose-error"); if(state.compose && (state.compose._attPending||0)>0){ if(errEl) errEl.textContent="Still reading attached files — please wait a moment."; return; } if(btn){btn.disabled=true; btn.textContent="Sending…";} if(errEl) errEl.textContent=""; try{ await sendCurrentCompose(); }catch(e){ if(errEl) errEl.textContent=e.message||"Failed to send email."; if(btn){btn.disabled=false; btn.textContent="Send ➤";} } }
+function newCompose(){ state.compose={ title:"New email", fromEmail:(identities.find(i=>i.email.toLowerCase()===(state.activeAddress||"").toLowerCase())||identities[0]||{}).email||"", to:"", cc:"", bcc:"", subject:"", body:"", attachments:[] }; render(); }
 
 /* ===== Settings v2: 3 kartu terpisah, bukan satu form panjang ===== */
 function settingsHtml(){
@@ -661,6 +784,7 @@ function settingsHtml(){
     +'<div class="kv"><b>Domain</b><span>@'+esc(cfg.domain)+'</span></div>'
     +'<div class="kv"><b>Resend quota</b><span>3,000 emails/month, max 100/day (free plan)</span></div>'
     +'<div class="kv"><b>Refreshing</b><span>Automatic every 2 minutes while this file is open. No background sync when the file is closed.</span></div>'
+    +'<div class="kv"><b>New mail alerts</b><span>'+(state.notifyEnabled?"On — you will be notified when new mail arrives.":"Off.")+' <button class="btn" style="min-height:38px;margin-top:6px" onclick="toggleNotify()">'+(state.notifyEnabled?"Turn off":"Turn on")+'</button><br><span class="small">Shows a message here and, if you allow it, a browser notification when new mail arrives while this page is open.</span></span></div>'
     +'<div class="kv"><b>Stored data</b><span>Only in this browser (localStorage). Switching browsers means setting up the connection &amp; sender names again.</span></div>'
     +'<div style="margin-top:14px"><button class="btn" style="color:var(--bad)" onclick="disconnect()">Disconnect</button></div></div>'
     +'<div class="card card-pad section-card"><h2>Public mode &amp; security</h2><p class="muted">This file is safe to host publicly: no API key, password, or real Worker URL is written in it. Guests can only use a temporary address <b>tmp-xxxxxxxxxx@'+esc(cfg.domain)+'</b> (read-only, via the Worker public routes) and never see the owner inbox, addresses, or settings.</p><p class="muted" style="margin-top:8px">If this file is opened on a shared / public device, lock it or delete your data when done:</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" onclick="lockOwner()">🔒 Lock (back to the guest page)</button><button class="btn" style="color:var(--bad)" onclick="wipeAllData()">🗑 Delete all data on this device</button></div><p class="hint" style="margin-top:10px">Turn guest mode off any time from the Worker: set <b>PUBLIC_ENABLED=false</b> then Deploy — owner mode keeps working.</p></div>';
@@ -676,14 +800,14 @@ function onSearch(v){ state.search=v; if(state.tab!=="inbox"){ state.tab="inbox"
 function render(){
   if(state.mode==="guest"){
     if(!guestBase()){
-      app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">\u2709\uFE0F</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+'</div></header>'
+      app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">\u2709\uFE0F</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
         +'<div class="shell"><main class="main"><div class="card card-pad" style="text-align:center"><div style="font-size:40px">\u2709\uFE0F</div><h1 style="margin:8px 0 6px">Guest mode is not active yet</h1><p class="muted" style="margin:0">This copy has not been connected to the public Worker yet. The owner needs to enter the Worker URL first.</p></div></main></div>';
       renderToast(); return;
     }
-    app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">✉️</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">Temporary address</span></span></div>'+statusPill()+'</div></header>'
+    app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">✉️</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">Temporary address</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
       +'<div class="shell"><main class="main"><div class="page-head"><h1>Guest Inbox</h1><span class="spacer"></span><span class="small">'+esc(state.guestAddress||"")+'</span></div>'+guestHtml()+'</main></div>'
       + guestReadHtml();
-    renderToast(); return;
+    renderToast(); loadAttPreviews(); return;
   }
   const unread=unreadCount();
   const unreadShown = state.activeAddress ? filteredMessages().filter(m=>!readFlags[m.id]).length : unread;
@@ -692,7 +816,7 @@ function render(){
   if(needsSetup){
     main = stepsHtml() + wizardHtml();
   } else if(state.tab==="inbox"){
-    main = addrChipsHtml() + addrManageHtml() + '<div class="toolbar"><div class="search"><span>🔍</span><input id="search-input" type="search" placeholder="Search sender or subject…" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div><button class="btn" onclick="loadInbox()" '+(state.loading?"disabled":"")+'><span class="'+(state.loading?"spin":"")+'">↻</span> Refresh</button></div>'
+    main = addrChipsHtml() + addrManageHtml() + '<div class="toolbar"><div class="search"><span>🔍</span><input id="search-input" type="search" placeholder="Search sender or subject…" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div><button class="btn" onclick="loadInbox()" '+(state.loading?"disabled":"")+'><span class="'+(state.loading?"spin":"")+'">↻</span> Refresh</button><button class="btn'+(state.unreadOnly?" on":"")+'" onclick="toggleUnreadOnly()">Unread'+(unread?(" ("+unread+")"):"")+'</button></div>'
       +'<p class="small" style="margin:0 2px 12px">'+(state.lastSync?("Last checked: "+esc(new Date(state.lastSync).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}))+" · checked automatically every 2 minutes while this page is open"):"Press Refresh to check for incoming mail.")+'</p>'
       + listHtml();
   }
@@ -702,7 +826,7 @@ function render(){
   const pageTitle = needsSetup ? "Set up first — it only takes a moment" : state.tab==="inbox" ? "Inbox" : state.tab==="sent" ? "Sent" : "Settings";
   const pageSub = needsSetup ? "3 steps, no technical jargon." : state.tab==="sent" ? "Only stored on this device." : state.tab==="settings" ? "Connection, sender names, and quota info." : (state.activeAddress ? esc(state.activeAddress) : "@"+esc(cfg.domain));
 
-  app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">✉️</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+'</div></header>'
+  app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">✉️</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+themeBtn()+'</div></header>'
     +'<div class="shell">'
     +(needsSetup?"":'<aside class="sidebar"><button class="side-btn" onclick="newCompose()">✎ &nbsp;Compose new email</button><div style="height:8px"></div><button class="side-btn '+(state.tab==="inbox"?"active":"")+'" onclick="goTab(\'inbox\')">📥 &nbsp;Inbox'+(unread?'<span class="count">'+unread+'</span>':"")+'</button><button class="side-btn '+(state.tab==="sent"?"active":"")+'" onclick="goTab(\'sent\')">➤ &nbsp;Sent</button><button class="side-btn '+(state.tab==="settings"?"active":"")+'" onclick="goTab(\'settings\')">⚙ &nbsp;Settings</button><p class="side-note">Mail to any @'+esc(cfg.domain)+' address arrives automatically. No need to create addresses one by one.</p></aside>')
     +'<main class="main"><div class="page-head"><h1>'+esc(pageTitle)+'</h1>'+(state.tab==="inbox"&&unreadShown&&!needsSetup?'<span class="chip chip-accent">'+unreadShown+" unread</span>":"")+'<span class="spacer"></span><span class="small">'+esc(pageSub)+'</span></div>'
@@ -711,6 +835,8 @@ function render(){
     +(needsSetup?"":'<nav class="bottomnav"><button class="'+(state.tab==="inbox"?"active":"")+'" onclick="goTab(\'inbox\')">📥<br>Inbox'+(unread?" ("+unread+")":"")+'</button><button class="'+(state.tab==="sent"?"active":"")+'" onclick="goTab(\'sent\')">➤<br>Sent</button><button class="'+(state.tab==="settings"?"active":"")+'" onclick="goTab(\'settings\')">⚙<br>Settings</button></nav>')
     + readHtml() + composeHtml();
   renderToast();
+  renderAttList();
+  loadAttPreviews();
 }
 /* Init */
 /* Migrasi: alamat tamu lama (sebelum ada batas 3) dihitung sebagai alamat ke-1. */
@@ -721,6 +847,7 @@ if(!state.guestCreated.length && state.guestAddress){ state.guestCreated=[state.
 if(BOOT_MODE==="owner"){ state.mode="owner"; } else { state.mode="guest"; }
 if(!configured()){ state.setupStep=1; }
 else if(!identities.length){ state.setupStep=2; }
+if(state.theme==="dark") document.documentElement.setAttribute("data-theme","dark");
 render();
 if(state.mode==="owner" && configured()) loadInbox();
 if(state.mode==="guest"){ if(!state.guestAddress){ enterGuest(); } else { loadGuestInbox(); } }
