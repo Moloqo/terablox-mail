@@ -5,15 +5,18 @@ Webmail single-file untuk `@terablox.store`, di-host di GitHub Pages:
 
 Satu file `index.html` — buka langsung di browser, tanpa build, tanpa install.
 
-## Dua mode
+## Dua halaman (bukan lagi satu layar pilih mode)
 
-- **Tamu (publik):** pengunjung dapat alamat sementara acak
-  `tmp-xxxxxxxxxx@terablox.store` dan hanya bisa **baca** email yang masuk
-  ke alamat itu saja. Tidak bisa mengirim, tidak bisa melihat inbox, alamat,
-  atau pengaturan pemilik.
-- **Pemilik:** masuk dengan alamat Worker Cloudflare + kata sandi. Akses
-  penuh: semua alamat `@terablox.store`, kirim email, ganti alamat inbox
-  ala temp-mail (chip alamat di atas Kotak Masuk), kelola alamat.
+- **Halaman utama `/` — Tamu (publik):** pengunjung langsung dapat alamat
+  sementara acak `tmp-xxxxxxxxxx@terablox.store` dan hanya bisa **baca**
+  email yang masuk ke alamat itu saja. Tidak bisa mengirim, tidak bisa
+  melihat inbox, alamat, atau pengaturan pemilik. Tidak ada lagi tombol
+  login Pemilik di halaman ini.
+- **`/admin` — Pemilik:** login dengan alamat Worker Cloudflare + kata
+  sandi (file `admin.html`, salinan dari `index.html` dengan mode boot
+  Pemilik). Akses penuh: semua alamat `@terablox.store`, kirim email,
+  ganti alamat inbox ala temp-mail (chip alamat di atas Kotak Masuk),
+  kelola alamat.
 
 ## Cara kerja
 

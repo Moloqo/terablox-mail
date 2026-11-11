@@ -144,6 +144,10 @@ pre.plain{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-si
    Biarkan "" kalau file ini hanya untuk pemakaian pribadi (mode Tamu akan
    memberitahu pengunjung bahwa mode tamu belum diaktifkan). */
 const PUBLIC_WORKER_URL = "https://mail-terablox.lazulias00.workers.dev";
+/* BOOT_MODE — "guest" = halaman utama (langsung mode Tamu, tanpa login Pemilik).
+   "owner" = halaman /admin (langsung mode Pemilik / wizard). File admin.html
+   adalah salinan file ini dengan nilai ini diganti "owner". */
+const BOOT_MODE = "guest";
 const LS = {
   get(k, fb){ try{ const v = localStorage.getItem("tbm_"+k); return v===null?fb:JSON.parse(v); }catch(e){ return fb; } },
   set(k, v){ try{ localStorage.setItem("tbm_"+k, JSON.stringify(v)); }catch(e){} }
@@ -156,7 +160,7 @@ let cfg = {
 let identities = LS.get("identities", []);
 let sentLocal = LS.get("sent", []);
 let readFlags = LS.get("read", {});
-let state = { tab:"inbox", search:"", messages:[], loading:false, error:null, openId:null, detail:null, detailLoading:false, compose:null, toast:null, setupStep:1, lastSync:null, showPass:false, activeAddress: LS.get("active_address","")||"", addrManageOpen:false, mode:"landing", guestAddress: LS.get("guest_address","")||"", guestMessages:[], guestLoading:false, guestError:null, guestOpenId:null, guestDetail:null, guestDetailLoading:false };
+let state = { tab:"inbox", search:"", messages:[], loading:false, error:null, openId:null, detail:null, detailLoading:false, compose:null, toast:null, setupStep:1, lastSync:null, showPass:false, activeAddress: LS.get("active_address","")||"", addrManageOpen:false, mode:BOOT_MODE, guestAddress: LS.get("guest_address","")||"", guestMessages:[], guestLoading:false, guestError:null, guestOpenId:null, guestDetail:null, guestDetailLoading:false };
 function saveCfg(){ LS.set("proxy_url",cfg.proxyUrl); LS.set("proxy_password",cfg.proxyPassword); LS.set("domain",cfg.domain); }
 function saveIdent(){ LS.set("identities",identities); }
 function saveSent(){ LS.set("sent",sentLocal); }
@@ -290,7 +294,6 @@ function filteredMessages(){
 function setActiveAddress(v){ state.activeAddress=(v||"").toLowerCase(); LS.set("active_address", state.activeAddress); state.search=""; render(); }
 function statusPill(){
   if(state.mode==="guest") return '<span class="status off"><span class="dot"></span>\uD83D\uDC64 Mode Tamu</span>';
-  if(state.mode==="landing") return '<span class="status"><span class="dot"></span>\uD83C\uDF10 Publik</span>';
   if(configured()) return '<span class="status on"><span class="dot"></span>Terhubung</span>';
   return '<span class="status off"><span class="dot"></span>Belum terhubung</span>';
 }
@@ -393,8 +396,6 @@ function enterGuest(){
   if(!state.guestAddress){ state.guestAddress=genGuestAddress(); LS.set("guest_address", state.guestAddress); }
   state.mode="guest"; state.search=""; render(); loadGuestInbox();
 }
-function enterOwner(){ state.mode="owner"; render(); }
-function exitGuest(){ state.mode="landing"; render(); }
 function rotateGuestAddress(){
   state.guestAddress=genGuestAddress(); LS.set("guest_address", state.guestAddress);
   state.guestMessages=[]; state.guestOpenId=null; state.guestDetail=null; render(); loadGuestInbox();
@@ -402,15 +403,17 @@ function rotateGuestAddress(){
 }
 function forgetGuestAddress(){
   state.guestAddress=""; LS.set("guest_address", "");
-  state.guestMessages=[]; state.mode="landing"; render();
+  state.guestMessages=[]; state.guestOpenId=null; state.guestDetail=null;
+  enterGuest();
+  toast("Alamat lama dilupakan \u2014 ini alamat sementaramu yang baru.");
 }
-function lockOwner(){ state.mode="landing"; render(); }
+function lockOwner(){ location.href="./"; }
 function wipeAllData(){
   if(!confirm("Hapus SEMUA data Terablox Mail di browser ini? Alamat Worker, kata sandi, nama pengirim, terkirim, sudah-dibaca, dan alamat tamu akan hilang.")) return;
   ["proxy_url","proxy_password","domain","identities","sent","read","active_address","guest_address"].forEach(k=>{ try{ localStorage.removeItem("tbm_"+k); }catch(e){} });
   cfg={proxyUrl:"",proxyPassword:"",domain:"terablox.store"}; identities=[]; sentLocal=[]; readFlags={};
   state.messages=[]; state.activeAddress=""; state.guestAddress=""; state.guestMessages=[];
-  state.mode="landing"; state.tab="inbox"; state.setupStep=1; render();
+  state.mode="owner"; state.tab="inbox"; state.setupStep=1; render();
 }
 async function loadGuestInbox(){
   const base=guestBase(); if(!base || !state.guestAddress) return;
@@ -448,12 +451,6 @@ async function downloadGuestAttachment(emailId, attId, filename){
     const a=document.createElement("a"); a.href=meta.download_url; a.download=meta.filename||filename||"lampiran"; a.target="_blank"; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove();
   }catch(e){ toast(e.message||"Gagal mengunduh lampiran."); }
 }
-function landingHtml(){
-  const ready=guestBase().length>0;
-  return '<div class="card card-pad" style="text-align:center;margin-bottom:16px"><div style="font-size:40px">✉️</div><h1 style="margin:8px 0 6px">Terablox Mail</h1><p class="muted" style="margin:0">Email sementara @'+esc(cfg.domain)+' — atau webmail pribadi pemiliknya.</p></div>'
-    +'<div class="card card-pad section-card"><h2>\uD83D\uDC64 Saya Tamu — pakai alamat sementara</h2><p class="muted">Dapat alamat acak <b>tmp-xxxxxxxxxx@'+esc(cfg.domain)+'</b> yang langsung aktif. Baca email yang masuk ke alamat itu saja. Tanpa daftar, tanpa kata sandi.</p><p class="small">Yang <b>tidak bisa</b> tamu lakukan: mengirim email, melihat inbox / alamat / pengaturan pemilik, atau memakai alamat bernama (tuan@, support@, …).</p><br><button class="btn btn-primary btn-block" onclick="enterGuest()">Dapatkan alamat sementara →</button>'+(ready?"":'<p class="err" style="margin-top:10px">Mode tamu belum diaktifkan di salinan web ini (pemilik belum mengisi alamat Worker publik).</p>')+'</div>'
-    +'<div class="card card-pad"><h2>\uD83D\uDD10 Saya Pemilik</h2><p class="muted">Masuk dengan alamat Worker + kata sandi punyamu. Akses penuh: semua alamat, kirim email, pengaturan.</p><br><button class="btn btn-block" onclick="enterOwner()">Masuk sebagai Pemilik →</button></div>';
-}
 function guestListHtml(){
   const list=filteredGuestMessages();
   if(state.guestLoading) return '<div class="card empty">Memuat inbox…</div>';
@@ -480,7 +477,7 @@ function guestReadHtml(){
 }
 function guestHtml(){
   const a=state.guestAddress||"";
-  return '<div class="card card-pad section-card" style="text-align:center"><p class="small" style="margin:0 0 6px">Alamat sementara kamu</p><p style="font-family:monospace;font-size:17px;font-weight:800;word-break:break-all;margin:0 0 12px">'+esc(a)+'</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn btn-primary" onclick="copyAddress(\''+esc(a)+'\')">📋 Salin alamat</button><button class="btn" onclick="loadGuestInbox()">↻ Perbarui</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"><button class="btn" onclick="rotateGuestAddress()">🔄 Ganti alamat</button><button class="btn" onclick="forgetGuestAddress()">Lupakan alamat ini</button><button class="btn" onclick="exitGuest()">← Beranda</button></div><p class="small" style="margin:12px 0 0">Siapa pun yang tahu alamat ini bisa membaca inbox-nya — jangan pakai untuk hal penting. Email dicek otomatis tiap 2 menit selama halaman terbuka.</p></div>'
+  return '<div class="card card-pad section-card" style="text-align:center"><p class="small" style="margin:0 0 6px">Alamat sementara kamu</p><p style="font-family:monospace;font-size:17px;font-weight:800;word-break:break-all;margin:0 0 12px">'+esc(a)+'</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn btn-primary" onclick="copyAddress(\''+esc(a)+'\')">📋 Salin alamat</button><button class="btn" onclick="loadGuestInbox()">↻ Perbarui</button></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"><button class="btn" onclick="rotateGuestAddress()">🔄 Ganti alamat</button><button class="btn" onclick="forgetGuestAddress()">Lupakan alamat ini</button></div><p class="small" style="margin:12px 0 0">Siapa pun yang tahu alamat ini bisa membaca inbox-nya — jangan pakai untuk hal penting. Email dicek otomatis tiap 2 menit selama halaman terbuka.</p></div>'
     +'<div class="toolbar"><div class="search"><span>🔍</span><input id="search-input" type="search" placeholder="Cari pengirim atau subjek…" value="'+esc(state.search)+'" oninput="onSearch(this.value)"></div></div>'
     + guestListHtml();
 }
@@ -628,7 +625,7 @@ function settingsHtml(){
     +'<div class="kv"><b>Penyegaran</b><span>Otomatis tiap 2 menit selama file ini terbuka. Tidak ada sync latar belakang kalau file ditutup.</span></div>'
     +'<div class="kv"><b>Data tersimpan</b><span>Hanya di browser ini (localStorage). Ganti browser = isi ulang koneksi &amp; nama pengirim.</span></div>'
     +'<div style="margin-top:14px"><button class="btn" style="color:var(--bad)" onclick="disconnect()">Putuskan koneksi</button></div></div>'
-    +'<div class="card card-pad section-card"><h2>Mode publik &amp; keamanan</h2><p class="muted">File ini aman di-host untuk umum: tidak ada API key, kata sandi, atau alamat Worker asli yang tertulis di dalamnya. Tamu hanya bisa memakai alamat sementara <b>tmp-xxxxxxxxxx@'+esc(cfg.domain)+'</b> (hanya baca, lewat rute publik Worker) dan tidak pernah melihat inbox, alamat, atau pengaturan pemilik.</p><p class="muted" style="margin-top:8px">Kalau file ini dibuka di perangkat bersama / umum, kunci atau hapus datamu setelah selesai:</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" onclick="lockOwner()">🔒 Kunci (ke layar pilih mode)</button><button class="btn" style="color:var(--bad)" onclick="wipeAllData()">🗑 Hapus semua data di perangkat ini</button></div><p class="hint" style="margin-top:10px">Matikan mode tamu kapan pun dari Worker: set <b>PUBLIC_ENABLED=false</b> lalu Deploy — mode Pemilik tetap jalan.</p></div>';
+    +'<div class="card card-pad section-card"><h2>Mode publik &amp; keamanan</h2><p class="muted">File ini aman di-host untuk umum: tidak ada API key, kata sandi, atau alamat Worker asli yang tertulis di dalamnya. Tamu hanya bisa memakai alamat sementara <b>tmp-xxxxxxxxxx@'+esc(cfg.domain)+'</b> (hanya baca, lewat rute publik Worker) dan tidak pernah melihat inbox, alamat, atau pengaturan pemilik.</p><p class="muted" style="margin-top:8px">Kalau file ini dibuka di perangkat bersama / umum, kunci atau hapus datamu setelah selesai:</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" onclick="lockOwner()">🔒 Kunci (ke halaman tamu)</button><button class="btn" style="color:var(--bad)" onclick="wipeAllData()">🗑 Hapus semua data di perangkat ini</button></div><p class="hint" style="margin-top:10px">Matikan mode tamu kapan pun dari Worker: set <b>PUBLIC_ENABLED=false</b> lalu Deploy — mode Pemilik tetap jalan.</p></div>';
 }
 function saveSettings(){ cfg.proxyUrl=document.getElementById("s-url").value.trim(); cfg.proxyPassword=document.getElementById("s-pass").value; saveCfg(); const m=document.getElementById("settings-msg"); if(m) m.innerHTML='<span class="oktxt">Tersimpan di browser ini.</span>'; if(configured()) loadInbox(); }
 async function doTest(){ saveSettingsSilent(); const btn=document.getElementById("test-btn"); const m=document.getElementById("settings-msg"); if(btn){btn.disabled=true; btn.textContent="Menguji…";} if(m) m.textContent=""; try{ await testConnection(); if(m) m.innerHTML='<span class="oktxt">Koneksi berhasil — Worker hidup dan API key Resend valid.</span>'; loadInbox(); }catch(e){ if(m) m.innerHTML='<span class="err">'+esc(e.message||"Koneksi gagal.")+"</span>"; } if(btn){btn.disabled=false; btn.textContent="Tes koneksi";} }
@@ -639,12 +636,12 @@ function disconnect(){ if(!confirm("Putuskan koneksi? Alamat Worker dan kata san
 function goTab(t){ if(t==="addresses") t="inbox"; state.tab=t; render(); if(t==="inbox" && configured() && !state.messages.length) loadInbox(); }
 function onSearch(v){ state.search=v; if(state.tab!=="inbox"){ state.tab="inbox"; render(); const el=document.getElementById("search-input"); if(el){el.value=v; el.focus();} } else render(); }
 function render(){
-  if(state.mode==="landing"){
-    app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">✉️</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+'</div></header>'
-      +'<div class="shell"><main class="main">'+landingHtml()+'</main></div>';
-    renderToast(); return;
-  }
   if(state.mode==="guest"){
+    if(!guestBase()){
+      app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">\u2709\uFE0F</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">@'+esc(cfg.domain)+'</span></span></div>'+statusPill()+'</div></header>'
+        +'<div class="shell"><main class="main"><div class="card card-pad" style="text-align:center"><div style="font-size:40px">\u2709\uFE0F</div><h1 style="margin:8px 0 6px">Mode tamu belum aktif</h1><p class="muted" style="margin:0">Salinan web ini belum dihubungkan ke Worker publik. Pemilik perlu mengisi alamat Worker-nya dulu.</p></div></main></div>';
+      renderToast(); return;
+    }
     app.innerHTML='<header class="header"><div class="header-in"><div class="brand"><span class="brand-mark">✉️</span><span><span class="brand-name">Terablox Mail</span><br><span class="brand-sub">Alamat sementara</span></span></div>'+statusPill()+'</div></header>'
       +'<div class="shell"><main class="main"><div class="page-head"><h1>Kotak Masuk Tamu</h1><span class="spacer"></span><span class="small">'+esc(state.guestAddress||"")+'</span></div>'+guestHtml()+'</main></div>'
       + guestReadHtml();
@@ -678,14 +675,13 @@ function render(){
   renderToast();
 }
 /* Init */
-if(configured()){ state.mode="owner"; }
-else if(state.guestAddress){ state.mode="guest"; }
-else { state.mode="landing"; }
+/* Boot: halaman utama langsung mode Tamu; /admin langsung mode Pemilik. */
+if(BOOT_MODE==="owner"){ state.mode="owner"; } else { state.mode="guest"; }
 if(!configured()){ state.setupStep=1; }
 else if(!identities.length){ state.setupStep=2; }
 render();
-if(configured()) loadInbox();
-if(state.mode==="guest" && state.guestAddress) loadGuestInbox();
+if(state.mode==="owner" && configured()) loadInbox();
+if(state.mode==="guest"){ if(!state.guestAddress){ enterGuest(); } else { loadGuestInbox(); } }
 </script>
 </body>
 </html>
