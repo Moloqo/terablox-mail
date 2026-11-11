@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 
-/* TheMail v11 — auto-save drafts (new key tbm_draft; text fields only, attachments not saved).
+/* TheMail v12 — responsive: wider desktop layout (1400px+) so wide screens stop wasting space.
    Single file, no server, no external fonts. All Resend calls go through your Worker.
    The Resend API key NEVER lives in this file. What is stored in this browser's localStorage:
    Worker URL + password, sender names, locally sent mail, read marks, draft of the last unsent email. */
@@ -63,6 +63,8 @@ a{color:var(--accent)}
 @media(min-width:900px){ .sidebar{display:block} .main{flex:1;min-width:0} }
 .main{flex:1;min-width:0;max-width:760px;margin:0 auto;width:100%}
 @media(min-width:900px){ .main{margin:0} }
+@media(min-width:1400px){ .header-in{max-width:1280px} .shell{max-width:1280px} .sidebar{flex-basis:230px} .main{max-width:940px} .overlay-inner{max-width:880px} }
+@media(max-width:380px){ .brand-sub{display:none} }
 .side-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:none;padding:10px 12px;border-radius:10px;font-size:14.5px;color:var(--text)}
 .side-btn:hover{background:var(--surface-2)}
 .side-btn.active{background:var(--accent-soft);font-weight:600;color:var(--accent-strong)}

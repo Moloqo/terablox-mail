@@ -128,3 +128,16 @@ One `index.html` file — open it straight in the browser, no build, no install.
   not saved in drafts. The draft is deleted automatically once the email
   is sent, or when you tap "Discard draft".
 - No Worker change — Worker v6 still applies.
+
+## What's new in v12 (2026-11-12) — responsive layout
+
+- **Wider on large screens**: on screens 1400px and wider, the content
+  grows (shell 1080px → 1280px, inbox column 760px → 940px, sidebar
+  210px → 230px, read/compose overlay 760px → 880px), so a big desktop
+  monitor no longer shows mostly empty margins.
+- **Small phones (320px)**: the header no longer overlaps — the
+  "@terablox.store" subtitle under the logo is hidden below 380px wide
+  (the domain still shows next to "Inbox").
+- Mobile and tablet layouts were audited at 320/360/768px and needed no
+  change: no horizontal overflow, all buttons big enough to tap.
+- No Worker change — Worker v6 still applies.
